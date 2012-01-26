@@ -3,8 +3,10 @@
 #define MOT_HDRINTERFACE_H
 
 #include <utils/threads.h>
+#if 0
 #include "ammem.h"
 #include "amcomdef.h"
+#endif
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -12,16 +14,21 @@
 #include <assert.h>
 #include <unistd.h>
 
+#if 0
 #include "amkernel.h"
 #include "merror.h"
 #include "amstream.h"
 #include "arcsoft_multiexposure.h"
 #include "arcsoft_jpgcodec.h"
+#endif
 
 #include "CameraHal.h"
 
 
 namespace android {
+
+typedef bool MBool;
+typedef unsigned char MByte;
 
 class MotHDRInterface {
 public:
@@ -29,7 +36,8 @@ public:
     MBool HDRInterfaceProcess();
     int setDataBuffers(MByte* pBuf, unsigned int filledLen, unsigned int offset);
     void setImageSize(int width, int height);
-    void provideResultantBuffToCamHAL(ASVLOFFSCREEN* exposureImgOut);
+    //void provideResultantBuffToCamHAL(ASVLOFFSCREEN* exposureImgOut);
+    void provideResultantBuffToCamHAL(void* exposureImgOut);
 
     void stop();
     bool init();

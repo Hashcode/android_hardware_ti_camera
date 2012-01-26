@@ -38,6 +38,8 @@ public:
 static const  char KEY_SUPPORTED_CAMERAS[];
 // Select logical Camera index
 static const char KEY_CAMERA[];
+static const char KEY_CAMERA_MOTO[];
+static const char KEY_CAMERA_MOTO_VALUES[];
 static const char KEY_CAMERA_NAME[];
 static const  char KEY_S3D_SUPPORTED[];
 static const char  KEY_FACE_DETECTION_ENABLE[];
@@ -48,6 +50,7 @@ static const  char KEY_CAP_MODE[];
 static const  char KEY_VSTAB[];
 static const  char KEY_VSTAB_VALUES[];
 static const  char KEY_VNF[];
+static const  char KEY_VNF_VALUES[];
 static const  char KEY_SATURATION[];
 static const  char KEY_BRIGHTNESS[];
 static const  char KEY_EXPOSURE_MODE[];
@@ -123,8 +126,12 @@ static const char VIDEO_MINFRAMERATE_33[];
 //  TI extensions for Manual Gain and Manual Exposure
 static const char KEY_MANUAL_EXPOSURE_LEFT[];
 static const char KEY_MANUAL_EXPOSURE_RIGHT[];
+static const char KEY_MANUAL_EXPOSURE_MODES[];
+static const char KEY_MANUAL_GAIN_EV_RIGHT[];
+static const char KEY_MANUAL_GAIN_EV_LEFT[];
 static const char KEY_MANUAL_GAIN_ISO_RIGHT[];
 static const char KEY_MANUAL_GAIN_ISO_LEFT[];
+static const char KEY_MANUAL_GAIN_MODES[];
 
 //TI extensions for setting EXIF tags
 static const char KEY_EXIF_MODEL[];
@@ -154,6 +161,8 @@ static const char IPP_NONE[];
 static const char HIGH_PERFORMANCE_MODE[];
 static const char HIGH_QUALITY_MODE[];
 static const char VIDEO_MODE[];
+static const char HIGH_QUALITY_NONZSL_MODE[];
+
 
 // TI extensions to standard android pixel formats
 static const char PIXEL_FORMAT_RAW[];
@@ -242,6 +251,58 @@ static const char AUTOCONVERGENCE_MODE_CENTER[];
 static const char AUTOCONVERGENCE_MODE_FFT[];
 static const char AUTOCONVERGENCE_MODE_MANUAL[];
 
+// Motorola specific - begin
+
+// TI extensions to add Motorola test command inerface (TCMD)
+
+static const char KEY_TESTPATTERN1_COLORBARS[];
+
+static const char KEY_TESTPATTERN1_ENMANUALEXPOSURE[];
+static const char KEY_DEBUGATTRIB_EXPOSURETIME[];
+static const char KEY_DEBUGATTRIB_EXPOSUREGAIN[];
+
+static const char KEY_TESTPATTERN1_TARGETEDEXPOSURE[];
+static const char KEY_DEBUGATTRIB_TARGETEXPVALUE[];
+
+static const char KEY_DEBUGATTRIB_CALIBRATIONSTATUS[];
+
+static const char KEY_DEBUGATTRIB_ENLENSPOSGETSET[];
+static const char KEY_DEBUGATTRIB_LENSPOSITION[];
+static const char KEY_DEBUGATTRIB_AFSHARPNESSSCORE[];
+
+static const char KEY_DEBUGATTRIB_MIPIFRAMECOUNT[];
+static const char KEY_DEBUGATTRIB_MIPIECCERRORS[];
+static const char KEY_DEBUGATTRIB_MIPICRCERRORS[];
+static const char KEY_DEBUGATTRIB_MIPIRESET[];
+
+// enable/disable values
+static const char TESTPATTERN1_ENABLE[];
+static const char TESTPATTERN1_DISABLE[];
+
+static const char KEY_MOT_LEDFLASH[];
+static const char KEY_MOT_LEDTORCH[];
+
+static const char KEY_MANUAL_EXPOSURE_TIME_MS[];
+
+// Current mot-hdr mode.
+// Example value: "on" or MOT_HDR_MODE_XXX constants. Read/write.
+static const char KEY_MOT_HDR_MODE[];
+// Supported mot-hdr modes.
+// Example value: "on,off". Read only.
+static const char KEY_SUPPORTED_MOT_HDR_MODES[];
+
+// Values for mot-hdr mode settings.
+// Mot HDR will be off.
+static const char MOT_HDR_MODE_OFF[];
+// Mot HDR will be on
+static const char MOT_HDR_MODE_ON[];
+
+// Red, Green, Blue Tint Effects
+static const char EFFECT_RED_TINT[];
+static const char EFFECT_GREEN_TINT[];
+static const char EFFECT_BLUE_TINT[];
+
+// Motorola specific - end
 
 //TI extensions for flash mode settings
 static const char FLASH_MODE_FILL_IN[];
@@ -252,7 +313,6 @@ static const char ORIENTATION_SENSOR_90[];
 static const char ORIENTATION_SENSOR_180[];
 static const char ORIENTATION_SENSOR_270[];
 
-
 //TI values for camera direction
 static const char FACING_FRONT[];
 static const char FACING_BACK[];
@@ -262,4 +322,3 @@ static const char FACING_BACK[];
 };
 
 #endif
-

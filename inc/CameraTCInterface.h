@@ -59,6 +59,7 @@ public:
      } test;
    } CameraTestOutputs;
 
+#if 0
    // Test commands must inform HAL when it's using the test APIs
    virtual void EnableTestMode( bool enable ) = 0;
 
@@ -71,6 +72,7 @@ public:
    // Example: "Semco,Aptina5130,Rev8"
    virtual bool GetCameraVendorString( char *str, unsigned char length ) = 0;
    virtual bool GetCameraModuleQueryString( char *str, unsigned char length ) = 0;
+#endif
 
    typedef enum
    { TestPattern1_None                  = 0x00000000
@@ -153,11 +155,12 @@ public:
    , DebugAttrib_NUM
    } DebugAttrib;
 
+#if 0
    // Returns 0 for invalid attribute
    virtual unsigned long GetDebugAttrib( DebugAttrib attrib ) = 0;
    virtual bool          SetDebugAttrib( DebugAttrib attrib, unsigned long value ) = 0;
    virtual bool          SetFlashLedTorch( unsigned intensity ) = 0;
-
+#endif
    virtual ~CameraTCInterface() {};
 };
 

@@ -106,7 +106,9 @@ void camera_set_callbacks(struct camera_device * device,
 
     ti_dev = (ti_camera_device_t*) device;
 
-    gCameraHals[ti_dev->cameraid]->setCallbacks(notify_cb, data_cb, data_cb_timestamp, get_memory, user);
+    /* FIXME-HASH: removed "get_memory" */
+    // gCameraHals[ti_dev->cameraid]->setCallbacks(notify_cb, data_cb, data_cb_timestamp, get_memory, user);
+    gCameraHals[ti_dev->cameraid]->setCallbacks(notify_cb, data_cb, data_cb_timestamp, user);
 }
 
 void camera_enable_msg_type(struct camera_device * device, int32_t msg_type)

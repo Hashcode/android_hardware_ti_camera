@@ -111,6 +111,29 @@ status_t BaseCameraAdapter::setErrorHandler(ErrorNotifier *errorNotifier)
     return ret;
 }
 
+status_t BaseCameraAdapter::setCafHandler(CafNotifier *cafNotifier)
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    if ( NULL == cafNotifier )
+        {
+        CAMHAL_LOGEA("Invalid Error Notifier reference");
+        ret = -EINVAL;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        mCafNotifier = cafNotifier;
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+
 void BaseCameraAdapter::enableMsgType(int32_t msgs, frame_callback callback, event_callback eventCb, void* cookie)
 {
     LOG_FUNCTION_NAME
@@ -120,6 +143,13 @@ void BaseCameraAdapter::enableMsgType(int32_t msgs, frame_callback callback, eve
             {
             Mutex::Autolock lock(mSubscriberLock);
             mFrameSubscribers.add((int) cookie, callback);
+            }
+        }
+    else if( CameraFrame::SNAPSHOT_FRAME == msgs )
+        {
+            {
+            Mutex::Autolock lock(mSubscriberLock);
+            mSnapshotSubscribers.add((int) cookie, callback);
             }
         }
     else if ( CameraFrame::FRAME_DATA_SYNC == msgs )
@@ -189,6 +219,13 @@ void BaseCameraAdapter::disableMsgType(int32_t msgs, void* cookie)
             mFrameSubscribers.removeItem((int) cookie);
             }
         }
+    else if( CameraFrame::SNAPSHOT_FRAME == msgs )
+        {
+            {
+            Mutex::Autolock lock(mSubscriberLock);
+            mSnapshotSubscribers.removeItem((int) cookie);
+            }
+        }
     else if ( CameraFrame::FRAME_DATA_SYNC == msgs )
         {
             {
@@ -228,6 +265,7 @@ void BaseCameraAdapter::disableMsgType(int32_t msgs, void* cookie)
             mImageSubscribers.removeItem((int) cookie);
             mRawSubscribers.removeItem((int) cookie);
             mVideoSubscribers.removeItem((int) cookie);
+            mSnapshotSubscribers.removeItem((int) cookie);
             }
 
         }
@@ -333,6 +371,8 @@ status_t BaseCameraAdapter::sendCommand(int operation, int value1, int value2, i
 
                     if ( ret == NO_ERROR )
                         {
+                        if(desc->mBuffers)
+                            {
                         Mutex::Autolock lock(mPreviewBufferLock);
                         mPreviewBuffers = (int *) desc->mBuffers;
                         mPreviewBuffersLength = desc->mLength;
@@ -342,6 +382,7 @@ status_t BaseCameraAdapter::sendCommand(int operation, int value1, int value2, i
                             mPreviewBuffersAvailable.add(mPreviewBuffers[i], 0);
                             }
                         }
+                    }
                     }
                 else if( CameraAdapter::CAMERA_MEASUREMENT == mode )
                     {
@@ -353,12 +394,15 @@ status_t BaseCameraAdapter::sendCommand(int operation, int value1, int value2, i
                     if ( ret == NO_ERROR )
                         {
                         Mutex::Autolock lock(mPreviewDataBufferLock);
+                        if(desc->mBuffers)
+                            {
                         mPreviewDataBuffers = (int *) desc->mBuffers;
                         mPreviewDataBuffersLength = desc->mLength;
                         mPreviewDataBuffersAvailable.clear();
                         for ( uint32_t i = 0 ; i < desc->mCount ; i++ )
                             {
                             mPreviewDataBuffersAvailable.add(mPreviewDataBuffers[i], true);
+                                }
                             }
                         }
                     }
@@ -507,6 +551,11 @@ status_t BaseCameraAdapter::sendCommand(int operation, int value1, int value2, i
          case CameraAdapter::CAMERA_CANCEL_AUTOFOCUS:
             ret = cancelAutoFocus();
             break;
+        case CameraAdapter::CAMERA_COMPLETE_HDR_PROCESSING:
+            {
+            ret = completeHDRProcessing((void*)value1, value2);
+            break;
+            }
 
         default:
             CAMHAL_LOGEB("Command 0x%x unsupported!", operation);
@@ -644,6 +693,7 @@ status_t BaseCameraAdapter::sendFrameToSubscribers(CameraFrame *frame)
     frame_callback callback;
     uint32_t i = 0;
     KeyedVector<int, frame_callback> *subscribers = NULL;
+    size_t refCount = 0;
 
     LOG_FUNCTION_NAME
 
@@ -686,9 +736,13 @@ status_t BaseCameraAdapter::sendFrameToSubscribers(CameraFrame *frame)
                     break;
                     }
                 case CameraFrame::PREVIEW_FRAME_SYNC:
-                case CameraFrame::SNAPSHOT_FRAME:
                     {
                     subscribers = &mFrameSubscribers;
+                    break;
+                    }
+                case CameraFrame::SNAPSHOT_FRAME:
+                    {
+                    subscribers = &mSnapshotSubscribers;
                     break;
                     }
                 default:
@@ -888,6 +942,7 @@ status_t BaseCameraAdapter::setTimeOut(int sec)
     mFocusSubscribers.clear();
     mShutterSubscribers.clear();
     mZoomSubscribers.clear();
+    mSnapshotSubscribers.clear();
 
     LOG_FUNCTION_NAME_EXIT
 
@@ -1094,6 +1149,17 @@ status_t BaseCameraAdapter::useBuffers(CameraMode mode, void* bufArr, int num, s
 }
 
 status_t BaseCameraAdapter::fillThisBuffer(void* frameBuf, CameraFrame::FrameType frameType)
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t BaseCameraAdapter::completeHDRProcessing(void* jpegBuffer, int len)
 {
     status_t ret = NO_ERROR;
 

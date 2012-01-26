@@ -83,6 +83,7 @@ const char TICameraParameters::KEY_SENSOR_ORIENTATION_VALUES[] = "sensor-orienta
 const char TICameraParameters::KEY_MINFRAMERATE[] = "min-framerate";
 const char TICameraParameters::KEY_MAXFRAMERATE[] = "max-framerate";
 
+
 //TI extensions for enabling/disabling GLBCE
 const char TICameraParameters::GLBCE_ENABLE[] = "enable";
 const char TICameraParameters::GLBCE_DISABLE[] = "disable";
@@ -224,6 +225,54 @@ const char TICameraParameters::AUTOCONVERGENCE_MODE_MANUAL[] = "mode-manual";
 //TI values for camera direction
 const char TICameraParameters::FACING_FRONT[]="front";
 const char TICameraParameters::FACING_BACK[]="back";
+
+// Motorola specific - begin
+
+// TI extensions to add Motorola test command inerface (TCMD)
+
+const char TICameraParameters::KEY_TESTPATTERN1_COLORBARS[] = "TestPattern1_ColorBars"; // enable/disable
+
+const char TICameraParameters::KEY_TESTPATTERN1_ENMANUALEXPOSURE[] = "TestPattern1_EnManualExposure"; // enable/disable
+const char TICameraParameters::KEY_DEBUGATTRIB_EXPOSURETIME[] = "DebugAttrib_ExposureTime"; // miscoseconds, default 0 - auto mode
+const char TICameraParameters::KEY_DEBUGATTRIB_EXPOSUREGAIN[] = "DebugAttrib_ExposureGain"; // -600..2000, default 0. means -6..20dB
+
+const char TICameraParameters::KEY_TESTPATTERN1_TARGETEDEXPOSURE[] = "TestPattern1_TargetedExposure"; // enable/disable
+const char TICameraParameters::KEY_DEBUGATTRIB_TARGETEXPVALUE[] = "DebugAttrib_TargetExpValue"; // 0..255, default 128
+
+const char TICameraParameters::KEY_DEBUGATTRIB_CALIBRATIONSTATUS[] = "DebugAttrib_CalibrationStatus"; // cal status, default 0
+
+const char TICameraParameters::KEY_DEBUGATTRIB_ENLENSPOSGETSET[] = "DebugAttrib_EnLensPosGetSet"; // int: 0-disabled, 1-enabled, default 0
+const char TICameraParameters::KEY_DEBUGATTRIB_LENSPOSITION[] = "DebugAttrib_LensPosition"; // 0..100, default 0
+const char TICameraParameters::KEY_DEBUGATTRIB_AFSHARPNESSSCORE[] = "DebugAttrib_AFSharpnessScore"; // U32, default 0;
+
+const char TICameraParameters::KEY_DEBUGATTRIB_MIPIFRAMECOUNT[] = "DebugAttrib_MipiFrameCount"; // U32, default 0
+const char TICameraParameters::KEY_DEBUGATTRIB_MIPIECCERRORS[] = "DebugAttrib_MipiEccErrors";   // U32, default 0
+const char TICameraParameters::KEY_DEBUGATTRIB_MIPICRCERRORS[] = "DebugAttrib_MipiCrcErrors";   // U32, default 0
+const char TICameraParameters::KEY_DEBUGATTRIB_MIPIRESET[] = "DebugAttrib_MipiReset";           // U32, default 0
+
+// enable/disable values
+const char TICameraParameters::TESTPATTERN1_ENABLE[] = "enable";
+const char TICameraParameters::TESTPATTERN1_DISABLE[] = "disable";
+
+const char TICameraParameters::KEY_MOT_LEDFLASH[] = "mot-led-flash"; // U32, default 100, percent
+const char TICameraParameters::KEY_MOT_LEDTORCH[] = "mot-led-torch"; // U32, default 100, percent
+
+// This is needed for the camera_test application.
+const char TICameraParameters::KEY_MANUAL_EXPOSURE_TIME_MS[] = "manual-exposure-time-ms"; // Milliseconds! Default 0 - auto mode
+
+const char TICameraParameters::KEY_MOT_HDR_MODE[] = "mot-hdr-mode";
+const char TICameraParameters::KEY_SUPPORTED_MOT_HDR_MODES[] = "mot-hdr-mode-values";
+
+// Values for mot hdr mode settings
+const char TICameraParameters::MOT_HDR_MODE_OFF[] = "off";
+const char TICameraParameters::MOT_HDR_MODE_ON[] = "on";
+
+// Red, Green, Blue Tint Effects
+const char TICameraParameters::EFFECT_RED_TINT[] = "red-tint";
+const char TICameraParameters::EFFECT_GREEN_TINT[] = "green-tint";
+const char TICameraParameters::EFFECT_BLUE_TINT[] = "blue-tint";
+
+// Motorola specific - end
 
 //TI extensions to flash settings
 const char TICameraParameters::FLASH_MODE_FILL_IN[] = "fill-in";

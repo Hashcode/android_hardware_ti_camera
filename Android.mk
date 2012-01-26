@@ -4,6 +4,14 @@ LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
 
+#######
+
+#
+# LIBCAMERA
+#
+
+LIBCAMERA_INTERMEDIATES_PREREQS := $(PRODUCT_OUT)/obj/lib
+
 # prerequisites for building libcamera
 file := $(LIBCAMERA_INTERMEDIATES_PREREQS)/libhdr_interface.so
 $(file) : $(TOP)/hardware/ti/camera/prebuilt/libhdr_interface.so
@@ -14,31 +22,31 @@ $(file) : $(TOP)/hardware/ti/camera/prebuilt/libhdr_interface.so
 
 LOCAL_SRC_FILES:= \
     CameraHalM.cpp \
+    CameraHal.cpp \
+    CameraHalUtilClasses.cpp \
+    AppCallbackNotifier.cpp \
+    MemoryManager.cpp	\
+    ANativeWindowDisplayAdapter.cpp \
+    CameraProperties.cpp \
+    TICameraParameters.cpp \
 
-#    CameraHal.cpp \
-#    CameraHalUtilClasses.cpp \
-#    AppCallbackNotifier.cpp \
-#    MemoryManager.cpp	\
-#    ANativeWindowDisplayAdapter.cpp \
-#    CameraProperties.cpp \
-#    TICameraParameters.cpp
-
-#    $(LOCAL_PATH)/../inc/HDRInterface \
 
 LOCAL_C_INCLUDES += \
-    inc \
-    ../omap4xxx/domx/system/mm_osal/inc \
-    ../omap4xxx/domx/system/omx_core/inc \
-    ../omap4xxx/hwc \
-    ../omap4xxx/libtiutils \
-    ../tiler \
-    ../syslink/ipc-listener \
+    $(LOCAL_PATH)/inc \
+    $(LOCAL_PATH)/inc/HDRInterface \
+    $(LOCAL_PATH)/../omap4xxx/domx/system/mm_osal/inc \
+    $(LOCAL_PATH)/../omap4xxx/domx/system/omx_core/inc \
+    $(LOCAL_PATH)/../omap4xxx/hwc \
+    $(LOCAL_PATH)/../omap4xxx/libtiutils \
+    $(LOCAL_PATH)/../tiler \
+    $(LOCAL_PATH)/../syslink/ipc-listener \
     $(TOP)/external/libxml2/include \
     $(TOP)/external/icu4c/common \
     $(TOP)/frameworks/base/include/utils \
     $(TOP)/frameworks/base/services/camera/libcameraservice \
     $(TOP)/frameworks/base/include/media/stagefright \
     $(TOP)/frameworks/base/include/media/stagefright/openmax \
+    $(TOP)/system/core/include/system \
 
 LOCAL_SHARED_LIBRARIES:= \
     libdl \
@@ -63,20 +71,6 @@ LOCAL_MODULE_TAGS:= optional
 
 include $(BUILD_SHARED_LIBRARY)
 
-ifeq (0,1)
-#
-# MotHDR Wrapper
-#
-
-#LOCAL_PATH:= $(call my-dir)
-#include $(CLEAR_VARS)
-
-#######
-
-#
-# libcamera
-#
-
 
 #######
 
@@ -92,18 +86,20 @@ LOCAL_SRC_FILES:= \
     OMXCameraAdapter/OMXCameraAdapter.cpp \
 
 LOCAL_C_INCLUDES += \
-    bionic/libc/include \
-    frameworks/base/include/ui \
-    frameworks/base/include/utils \
-    hardware/ti/omap4xxx/camera/inc/ \
-    hardware/ti/omap4xxx/camera/inc/OMXCameraAdapter \
-    hardware/ti/omap4xxx/hwc \
-    hardware/ti/omap4xxx/libtiutils \
-    hardware/ti/omap4xxx/libtiutils \
-    hardware/ti/omx/ducati/domx/system/omx_core/inc \
-    hardware/ti/omx/ducati/domx/system/mm_osal/inc \
-    external/libxml2/include \
-    external/icu4c/common \
+    $(LOCAL_PATH)/inc/ \
+    $(LOCAL_PATH)/inc/HDRInterface \
+    $(LOCAL_PATH)/inc/OMXCameraAdapter \
+    $(LOCAL_PATH)/../omap4xxx/hwc \
+    $(LOCAL_PATH)/../omap4xxx/libtiutils \
+    $(LOCAL_PATH)/../omap4xxx/domx/system/omx_core/inc \
+    $(LOCAL_PATH)/../omap4xxx/domx/system/mm_osal/inc \
+    $(TOP)/external/libxml2/include \
+    $(TOP)/external/icu4c/common \
+    $(TOP)/bionic/libc/include \
+    $(TOP)/frameworks/base/include/ui \
+    $(TOP)/frameworks/base/include/utils \
+    $(TOP)/frameworks/base/services/camera/libcameraservice \
+    $(TOP)/system/core/include/system \
 
 LOCAL_SHARED_LIBRARIES:= \
     libdl \
@@ -137,25 +133,28 @@ include $(BUILD_SHARED_LIBRARY)
 # OMX Camera HAL 
 #
 
-#LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES:= \
     CameraHal_Module.cpp
 
 LOCAL_C_INCLUDES += \
-    bionic/libc/include \
-    frameworks/base/include/ui \
-    frameworks/base/include/utils \
-    hardware/ti/omap4xxx/camera/inc \
-    hardware/ti/omap4xxx/libtiutils \
-    hardware/ti/omap4xxx/hwc \
-    hardware/ti/omx/ducati/domx/system/omx_core/inc \
-    hardware/ti/omx/ducati/domx/system/mm_osal/inc \
-    hardware/ti/tiler \
-    hardware/ti/syslink/ipc-listener \
-    external/libxml2/include \
-    external/icu4c/common \
+    $(LOCAL_PATH)/inc \
+    $(LOCAL_PATH)/inc/HDRInterface \
+    $(LOCAL_PATH)/inc/OMXCameraAdapter \
+    $(LOCAL_PATH)/../omap4xxx/libtiutils \
+    $(LOCAL_PATH)/../omap4xxx/hwc \
+    $(LOCAL_PATH)/../omap4xxx/domx/system/omx_core/inc \
+    $(LOCAL_PATH)/../omap4xxx/domx/system/mm_osal/inc \
+    $(LOCAL_PATH)/../tiler \
+    $(LOCAL_PATH)/../syslink/ipc-listener \
+    $(TOP)/bionic/libc/include \
+    $(TOP)/frameworks/base/include/ui \
+    $(TOP)/frameworks/base/include/utils \
+    $(TOP)/frameworks/base/services/camera/libcameraservice \
+    $(TOP)/external/libxml2/include \
+    $(TOP)/external/icu4c/common \
+    $(TOP)/system/core/include/system \
 
 
 LOCAL_SHARED_LIBRARIES := \
@@ -185,11 +184,9 @@ LOCAL_STATIC_LIBRARIES := \
 LOCAL_CFLAGS += -fno-short-enums -DCOPY_IMAGE_BUFFER -DTARGET_OMAP4 -mfpu=neon
 
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
-LOCAL_MODULE := camera.$(TARGET_BOARD_PLATFORM)
+LOCAL_MODULE := camera.omap4
 LOCAL_MODULE_TAGS := optional
 
-include $(BUILD_HEAPTRACKED_SHARED_LIBRARY)
-
-endif
+include $(BUILD_SHARED_LIBRARY)
 
 endif

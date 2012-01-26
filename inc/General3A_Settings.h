@@ -73,7 +73,10 @@ const userToOMX_LUT effects_UserToOMX [] = {
     { CameraParameters::EFFECT_WHITEBOARD, OMX_TI_ImageFilterWhiteBoard },
     { CameraParameters::EFFECT_AQUA, OMX_TI_ImageFilterAqua },
     { CameraParameters::EFFECT_POSTERIZE, OMX_TI_ImageFilterPosterize },
-    { TICameraParameters::EFFECT_BLACKWHITE, OMX_TI_ImageFilterBlackWhite }
+    { TICameraParameters::EFFECT_BLACKWHITE, OMX_TI_ImageFilterBlackWhite },
+    { TICameraParameters::EFFECT_RED_TINT, OMX_TI_ImageFilterRedTint },
+    { TICameraParameters::EFFECT_GREEN_TINT, OMX_TI_ImageFilterGreenTint },
+    { TICameraParameters::EFFECT_BLUE_TINT, OMX_TI_ImageFilterBlueTint }
 };
 
 const userToOMX_LUT scene_UserToOMX [] = {
@@ -134,7 +137,7 @@ const userToOMX_LUT focus_UserToOMX [] = {
     { TICameraParameters::FOCUS_MODE_CAF, OMX_IMAGE_FocusControlAuto },
     { TICameraParameters::FOCUS_MODE_TOUCH, FOCUS_REGION_PRIORITY },
     { TICameraParameters::FOCUS_MODE_FACE , FOCUS_FACE_PRIORITY },
-
+    { CameraParameters::FOCUS_MODE_FIXED , OMX_IMAGE_FocusControlOff },
 };
 
 const userToOMX_LUT exposure_UserToOMX [] = {

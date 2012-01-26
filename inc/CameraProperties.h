@@ -71,6 +71,7 @@ public:
         PROP_INDEX_SUPPORTED_ISO_VALUES,
         PROP_INDEX_SUPPORTED_SCENE_MODES,
         PROP_INDEX_SUPPORTED_FLASH_MODES,
+        PROP_INDEX_SUPPORTED_MOT_HDR_MODES,
         PROP_INDEX_SUPPORTED_FOCUS_MODES,
         PROP_INDEX_SUPPORTED_IPP_MODES,
         PROP_INDEX_REQUIRED_PREVIEW_BUFS,
@@ -95,6 +96,7 @@ public:
         PROP_INDEX_FOCUS_MODE,
         PROP_INDEX_SCENE_MODE,
         PROP_INDEX_FLASH_MODE,
+        PROP_INDEX_MOT_HDR_MODE,
         PROP_INDEX_JPEG_QUALITY,
         PROP_INDEX_CONTRAST,
         PROP_INDEX_SATURATION,
@@ -120,6 +122,8 @@ public:
         PROP_INDEX_EXIF_MAKE,
         PROP_INDEX_EXIF_MODEL,
         PROP_INDEX_JPEG_THUMBNAIL_QUALITY,
+        PROP_INDEX_VNF,
+        PROP_INDEX_VNF_VALUES,
         PROP_INDEX_S3D_FRAME_LAYOUT,
         PROP_INDEX_S3D_FRAME_LAYOUT_VALUES,
         PROP_INDEX_MAX
@@ -148,6 +152,7 @@ public:
     static const char SUPPORTED_ISO_VALUES[];
     static const char SUPPORTED_SCENE_MODES[];
     static const char SUPPORTED_FLASH_MODES[];
+    static const char SUPPORTED_MOT_HDR_MODES[];
     static const char SUPPORTED_FOCUS_MODES[];
     static const char REQUIRED_PREVIEW_BUFS[];
     static const char REQUIRED_IMAGE_BUFS[];
@@ -172,6 +177,7 @@ public:
     static const char FOCUS_MODE[];
     static const char SCENE_MODE[];
     static const char FLASH_MODE[];
+    static const char MOT_HDR_MODE[];
     static const char JPEG_QUALITY[];
     static const char BRIGHTNESS[];
     static const char SATURATION[];
@@ -199,6 +205,8 @@ public:
     static const char S3D2D_PREVIEW_MODES[];
     static const char VSTAB[];
     static const char VSTAB_VALUES[];
+    static const char VNF[];
+    static const char VNF_VALUES[];
     static const char FRAMERATE_RANGE[];
     static const char FRAMERATE_RANGE_SUPPORTED[];
     static const char S3D_FRAME_LAYOUT[];
@@ -251,4 +259,3 @@ private:
 };
 
 #endif //CAMERA_PROPERTIES_H
-

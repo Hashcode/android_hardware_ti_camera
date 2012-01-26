@@ -27,7 +27,7 @@
 #define LOG_TAG "CameraHal"
 
 #include "CameraHal.h"
-#include "OverlayDisplayAdapter.h"
+#include "ANativeWindowDisplayAdapter.h"
 #include "TICameraParameters.h"
 #include "CameraProperties.h"
 #include "hal_public.h"
@@ -255,6 +255,7 @@ status_t CameraHal::setParameters(const CameraParameters &newParams)
 
    LOG_FUNCTION_NAME
 
+    int w_coef = 1, h_coef = 1;
     bool isS3d = false;
     int w, h;
     int w_orig, h_orig;
@@ -300,6 +301,7 @@ status_t CameraHal::setParameters(const CameraParameters &newParams)
         mReloadAdapter = false;
         }
 
+#if 0
     if ((valstr = params.get(TICameraParameters::KEY_S3D_SUPPORTED)) != NULL)
         {
         isS3d = (!strcmp(valstr, "true"));
@@ -326,9 +328,12 @@ status_t CameraHal::setParameters(const CameraParameters &newParams)
 	}
     else
         {
+#endif
         CAMHAL_LOGDB("SEI encoding type: %s", TICameraParameters::SEI_ENCODING_NONE);
         mParameters.set(TICameraParameters::KEY_SEI_ENCODING_TYPE, TICameraParameters::SEI_ENCODING_NONE);
+#if 0
         }
+#endif
 
     ///Ensure that preview is not enabled when the below parameters are changed.
     if(!previewEnabled())
@@ -1554,7 +1559,8 @@ status_t CameraHal::startPreview()
     // that use CameraService, should not call EnableTestMode(true).
     if (true == bCameraTestEnabled)
     {
-        setOverlay(NULL);
+        // FIXME-HASH: setOverlay(NULL) (bCameraTextEnabled == true)
+        // setOverlay(NULL);
     }
 
     if( (mDisplayAdapter.get() != NULL) && ( !mPreviewEnabled ) && ( mDisplayPaused ) )
@@ -1718,6 +1724,10 @@ status_t CameraHal::startPreview()
     ///Enable the display adapter if present, actual overlay enable happens when we post the buffer
     if(mDisplayAdapter.get() != NULL)
         {
+        CAMHAL_LOGDA("Enabling display");
+
+        /* FIXME-HASH: 3d support? No */
+#if 0
         bool isS3d = false;
         DisplayAdapter::S3DParameters s3dParams;
 
@@ -1726,7 +1736,6 @@ status_t CameraHal::startPreview()
         s3dParams.order = OVERLAY_S3D_ORDER_LF;
         s3dParams.subSampling = OVERLAY_S3D_SS_NONE;
 
-        CAMHAL_LOGDA("Enabling display");
         if ((valstr = mParameters.get(TICameraParameters::KEY_S3D_SUPPORTED)) != NULL)
             {
             isS3d = (!strcmp(valstr, "true"));
@@ -1779,14 +1788,15 @@ status_t CameraHal::startPreview()
                     }
                 }
             }
+#endif
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
-        ret = mDisplayAdapter->enableDisplay(&mStartPreview, isS3d ? &s3dParams : NULL);
+        ret = mDisplayAdapter->enableDisplay(&mStartPreview, NULL);
 
 #else
 
-        ret = mDisplayAdapter->enableDisplay(NULL, isS3d ? &s3dParams : NULL);
+        ret = mDisplayAdapter->enableDisplay(NULL, NULL);
 
 #endif
 
@@ -1863,6 +1873,8 @@ status_t CameraHal::startPreview()
    @todo Define validation criteria for overlay object. Define error codes for scenarios
 
  */
+/* FIXME-HASH: replace setOverlay() */
+#if 0
 status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
 {
     status_t ret = NO_ERROR;
@@ -2025,7 +2037,7 @@ status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
     return ret;
 
 }
-
+#endif
 
 /**
    @brief Stop a previously started preview.
@@ -2091,7 +2103,8 @@ void CameraHal::stopPreview()
     mPreviewEnabled = false;
     mDisplayPaused = false;
     mBurst = 0;
-    bufferCount =1;
+    // FIXME-HASH: bufferCount = 1 [REMOVED -- Not defined]
+    // bufferCount =1;
     //0->CapMode not set 1->ImageCapture 2->Video
     mCapMode = NO_MODE;
 
@@ -2687,7 +2700,7 @@ status_t CameraHal::ImageCaptureConfig()
   status_t ret = NO_ERROR;
   int width, height;
   size_t pictureBufferLength;
-  bufferCount = 1;
+  unsigned int bufferCount = 1;
 
   LOG_FUNCTION_NAME
 
@@ -2920,6 +2933,8 @@ status_t  CameraHal::dump(int fd, const Vector<String16>& args) const
  */
 CameraHal::CameraHal(int cameraId)
 {
+    /* FIXME-HASH: call base constructor */
+    CameraHardwareInterface::CameraHardwareInterface("camera");
     LOG_FUNCTION_NAME
 
     ///Initialize all the member variables to their defaults
@@ -2975,7 +2990,7 @@ CameraHal::CameraHal(int cameraId)
     mRecordEnabled = 0;
     mAfterCapture = false;
     mBurst = 0;
-    bufferCount =1;
+    unsigned int bufferCount =1;
     mCapMode = NO_MODE;
 
     // Motorola extensions

@@ -29,6 +29,7 @@
 #include "ErrorUtils.h"
 #include "TICameraParameters.h"
 #include "MotHDRInterface.h"
+#include "system/camera.h"
 #include <signal.h>
 #include <math.h>
 #include <time.h>
@@ -49,6 +50,8 @@ static int mDebugFps = 0;
 
 
 #define IMAGE_CAPTURE_TIMEOUT 3000000 //3 // 3 second timeout
+
+#define OMX_CMD_TIMEOUT         3000000  //3 sec.
 
 #define SENSOR_EEPROM_SIZE	256
 #define DCC_HEADER_SIZE 	84
@@ -102,6 +105,9 @@ namespace android {
 
 //frames skipped before recalculating the framerate
 #define FPS_PERIOD 30
+
+//ISO base for calculating gain in dB
+#define ISO100 (100)
 
 static OMXCameraAdapter *gCameraAdapter = NULL;
 Mutex gAdapterLock;
@@ -3028,6 +3034,30 @@ status_t OMXCameraAdapter::flushBuffers()
     return (ret | ErrorUtils::omxToAndroidError(eError));
 }
 
+status_t OMXCameraAdapter::completeHDRProcessing(void* jpegBuf, int len)
+{
+    CAMHAL_LOGEA("CameraAdapter::CAMERA_COMPLETE_HDR_PROCESSING\n");
+    status_t ret = NO_ERROR;
+    CameraFrame frame;
+    OMXCameraPortParameters  *pPortParam = NULL;
+
+    pPortParam = &(mCameraAdapterParameters.mCameraPortParams[OMX_CAMERA_PORT_IMAGE_OUT_IMAGE]);
+
+    frame.mFrameType = CameraFrame::IMAGE_FRAME;
+    frame.mBuffer = jpegBuf;
+    frame.mLength = len;
+    frame.mAlignment = pPortParam->mStride;
+    frame.mOffset = 0;
+    frame.mWidth = pPortParam->mWidth;
+    frame.mHeight = pPortParam->mHeight;
+    frame.mTimestamp = systemTime(SYSTEM_TIME_MONOTONIC);
+
+    stopImageCapture();
+    ret = sendFrameToSubscribers(&frame);
+
+    return ret;
+}
+
 ///API to give the buffers to Adapter
 status_t OMXCameraAdapter::useBuffers(CameraMode mode, void* bufArr, int num, size_t length)
 {
@@ -3072,9 +3102,8 @@ status_t OMXCameraAdapter::UseBuffersPreviewData(void* bufArr, int num)
     status_t ret = NO_ERROR;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMXCameraPortParameters * measurementData = NULL;
-    uint32_t *buffers = (uint32_t*) bufArr;
+    uint32_t *buffers;
     Semaphore eventSem;
-    Mutex::Autolock lock(mPreviewDataBufferLock);
 
     LOG_FUNCTION_NAME
 
@@ -3086,15 +3115,16 @@ status_t OMXCameraAdapter::UseBuffersPreviewData(void* bufArr, int num)
 
     if ( NULL == bufArr )
         {
-        CAMHAL_LOGEA("NULL pointer passed for bufArr");
+        CAMHAL_LOGEA("NULL pointer passed for buffArr");
         ret = -EINVAL;
         }
 
     if ( NO_ERROR == ret )
         {
         measurementData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mMeasurementPortIndex];
-        measurementData->mNumBufs = num;
-        ret = eventSem.Create(0);
+        measurementData->mNumBufs = num ;
+        buffers= (uint32_t*) bufArr;
+        ret = mUsePreviewDataSem.Create(0);
         }
 
     if ( NO_ERROR == ret )
@@ -3104,40 +3134,429 @@ status_t OMXCameraAdapter::UseBuffersPreviewData(void* bufArr, int num)
                                       OMX_EventCmdComplete,
                                       OMX_CommandPortEnable,
                                       mCameraAdapterParameters.mMeasurementPortIndex,
-                                      eventSem,
-                                     -1 ///Infinite timeout
-                                      );
-        if ( ret != NO_ERROR )
+                                      mUsePreviewDataSem, -1);
+
+        if ( ret == NO_ERROR )
+            {
+            CAMHAL_LOGDB("Registering for event %d", ret);
+            }
+        else
             {
             CAMHAL_LOGEB("Error in registering for event %d", ret);
-            }
-        }
-
-    if ( NO_ERROR == ret )
-        {
-         ///Enable MEASUREMENT Port
-        eError = OMX_SendCommand(mCameraAdapterParameters.mHandleComp,
-                                      OMX_CommandPortEnable,
-                                      mCameraAdapterParameters.mMeasurementPortIndex,
-                                      NULL);
-        if ( eError != OMX_ErrorNone )
-            {
-            CAMHAL_LOGEB("OMX_SendCommand(OMX_CommandPortEnable) -0x%x", eError);
             ret = -1;
             }
         }
 
     if ( NO_ERROR == ret )
         {
+         ///Enable MEASUREMENT Port
+         eError = OMX_SendCommand(mCameraAdapterParameters.mHandleComp,
+                                      OMX_CommandPortEnable,
+                                      mCameraAdapterParameters.mMeasurementPortIndex,
+                                      NULL);
+
+            if ( eError == OMX_ErrorNone )
+                {
+                CAMHAL_LOGDB("OMX_SendCommand(OMX_CommandPortEnable) -0x%x", eError);
+                }
+            else
+                {
+                CAMHAL_LOGEB("OMX_SendCommand(OMX_CommandPortEnable) -0x%x", eError);
+                ret = -1;
+                }
+        }
+
+    if ( NO_ERROR == ret )
+        {
         //Wait for the port enable event to occur
-        CAMHAL_LOGDA("Waiting for Port enable on Measurement port");
-        eventSem.Wait();
-        CAMHAL_LOGDA("Port enable event arrived on measurement port");
+        ret = mUsePreviewDataSem.WaitTimeout(OMX_CMD_TIMEOUT);
+
+        if ( NO_ERROR == ret )
+            {
+            CAMHAL_LOGDA("Port enable event arrived on measurement port");
+            }
+        else
+            {
+            CAMHAL_LOGEA("Timeout expoired during port enable on measurement port");
+            }
         }
 
     LOG_FUNCTION_NAME_EXIT
 
     return ret;
+}
+
+status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
+{
+    status_t ret = NO_ERROR;
+    Message msg = {0,0,0,0,0,0};
+
+    LOG_FUNCTION_NAME
+
+    if(!mPreviewInProgress)
+        {
+        ///Set off the lock here and unlock when preview init is completed
+        mPreviewStartLock.lock();
+        }
+
+    //mLock is already held in useBuffers
+    mPreviewInProgress = true;
+
+
+    msg.command = CommandHandler::CAMERA_USE_BUFFERS_PREVIEW;
+    msg.arg1 = mErrorNotifier;
+    msg.arg2 = bufArr;
+    msg.arg3 = (void *) num;
+    ret = mCommandHandler->put(&msg);
+
+    if(ret!=NO_ERROR)
+        {
+        mPreviewStartLock.unlock();
+        mPreviewInProgress = false;
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+
+}
+
+status_t OMXCameraAdapter::doUseBuffersPreview(void* bufArr, int num)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+
+    if(!mPreviewInProgress)
+        {
+        mPreviewStartLock.unlock();
+        //Preview start is cancelled
+        return NO_ERROR;
+        }
+
+    OMXCameraPortParameters * mPreviewData = NULL;
+    OMXCameraPortParameters *measurementData = NULL;
+    mPreviewData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
+    measurementData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mMeasurementPortIndex];
+    mPreviewData->mNumBufs = num ;
+    uint32_t *buffers = (uint32_t*)bufArr;
+
+    Semaphore eventSem;
+    ret = mUsePreviewSem.Create(0);
+
+
+    LOG_FUNCTION_NAME
+
+
+    ///Flag to determine whether it is 3D camera or not
+    bool isS3d = false;
+    const char *valstr = NULL;
+    if ( (valstr = mParams.get(TICameraParameters::KEY_S3D_SUPPORTED)) != NULL) {
+        isS3d = (strcmp(valstr, "true") == 0);
+    }
+
+    if(bufArr && (mComponentState == OMX_StateExecuting))
+        {
+        CAMHAL_LOGEA("Queueing buffers to Camera");
+
+        for(int index=0;index<num;index++)
+            {
+            CAMHAL_LOGDB("Queuing new buffers to Ducati 0x%x",((int32_t*)bufArr)[index]);
+
+            mPreviewData->mBufferHeader[index]->nFlags |= OMX_BUFFERHEADERFLAG_MODIFIED;
+            mPreviewData->mBufferHeader[index]->pBuffer = (OMX_U8*)((int32_t*)bufArr)[index];
+
+            eError = OMX_FillThisBuffer(mCameraAdapterParameters.mHandleComp,
+                        (OMX_BUFFERHEADERTYPE*)mPreviewData->mBufferHeader[index]);
+
+            if(eError!=OMX_ErrorNone)
+                {
+                CAMHAL_LOGEB("OMX_FillThisBuffer-0x%x", eError);
+                }
+            GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
+
+             }
+
+        LOG_FUNCTION_NAME_EXIT
+        return eError;
+        }
+    else if(!bufArr && ((mComponentState == OMX_StateIdle) ||(mComponentState == OMX_StateExecuting) ))
+        {
+        //Nothing to do
+        return NO_ERROR;
+        }
+    else if(bufArr && (mComponentState == OMX_StateIdle))
+        {
+        for(int index=0;index<num;index++)
+            {
+            CAMHAL_LOGDB("Queuing new buffers to Ducati 0x%x",((int32_t*)bufArr)[index]);
+
+
+            mPreviewData->mBufferHeader[index]->pBuffer = (OMX_U8*)((int32_t*)bufArr)[index];
+            }
+        }
+
+
+
+     if(ret!=NO_ERROR)
+        {
+        CAMHAL_LOGEB("Error in creating semaphore %d", ret);
+        LOG_FUNCTION_NAME_EXIT
+        return ret;
+        }
+
+    if(mPreviewing && (mPreviewData->mNumBufs!=num))
+        {
+        CAMHAL_LOGEA("Current number of buffers doesnt equal new num of buffers passed!");
+        LOG_FUNCTION_NAME_EXIT
+        return BAD_VALUE;
+        }
+    ///If preview is ongoing
+    if(mPreviewing)
+        {
+        ///If preview is ongoing and we get a new set of buffers, flush the o/p queue,
+        ///wait for all buffers to come back and then queue the new buffers in one shot
+        ///Stop all callbacks when this is ongoing
+        mFlushBuffers = true;
+
+        ///Register for the FLUSH event
+        ///This method just inserts a message in Event Q, which is checked in the callback
+        ///The sempahore passed is signalled by the callback
+        ret = RegisterForEvent(mCameraAdapterParameters.mHandleComp,
+                                    OMX_EventCmdComplete,
+                                    OMX_CommandFlush,
+                                    OMX_CAMERA_PORT_VIDEO_OUT_PREVIEW,
+                                    mUsePreviewSem, -1);
+        if(ret!=NO_ERROR)
+            {
+            CAMHAL_LOGEB("Error in registering for event %d", ret);
+            goto EXIT;
+            }
+        ///Send FLUSH command to preview port
+        eError = OMX_SendCommand (mCameraAdapterParameters.mHandleComp, OMX_CommandFlush,
+                                                        OMX_CAMERA_PORT_VIDEO_OUT_PREVIEW,
+                                                        NULL);
+        if(eError!=OMX_ErrorNone)
+            {
+            CAMHAL_LOGEB("OMX_SendCommand(OMX_CommandFlush)- %x", eError);
+            }
+        GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
+
+        ///Wait for the FLUSH event to occur
+        ret = mUsePreviewSem.WaitTimeout(OMX_CMD_TIMEOUT);
+        if ( NO_ERROR == ret )
+            {
+            CAMHAL_LOGDA("Flush event received");
+            }
+        else
+            {
+            CAMHAL_LOGEA("Timeout expired on flush event");
+            goto EXIT;
+            }
+
+        ///If flush has already happened, we need to update the pBuffer pointer in
+        ///the buffer header and call OMX_FillThisBuffer to queue all the new buffers
+        for(int index=0;index<num;index++)
+            {
+            CAMHAL_LOGDB("Queuing new buffers to Ducati 0x%x",((int32_t*)bufArr)[index]);
+
+            mPreviewData->mBufferHeader[index]->pBuffer = (OMX_U8*)((int32_t*)bufArr)[index];
+
+            eError = OMX_FillThisBuffer(mCameraAdapterParameters.mHandleComp,
+                        (OMX_BUFFERHEADERTYPE*)mPreviewData->mBufferHeader[index]);
+
+            if(eError!=OMX_ErrorNone)
+                {
+                CAMHAL_LOGEB("OMX_FillThisBuffer-0x%x", eError);
+                }
+            GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
+
+            }
+        ///Once we queued new buffers, we set the flushBuffers flag to false
+        mFlushBuffers = false;
+
+        ret = ErrorUtils::omxToAndroidError(eError);
+
+        ///Return from here
+        return ret;
+        }
+
+    ret = setLDC(mIPP);
+    if ( NO_ERROR != ret )
+        {
+        CAMHAL_LOGEB("setLDC() failed %d", ret);
+        LOG_FUNCTION_NAME_EXIT
+        return ret;
+        }
+
+    ret = setNSF(mIPP);
+    if ( NO_ERROR != ret )
+        {
+        CAMHAL_LOGEB("setNSF() failed %d", ret);
+        LOG_FUNCTION_NAME_EXIT
+        return ret;
+        }
+
+    ret = setCaptureMode(mCapMode);
+    if ( NO_ERROR != ret )
+        {
+        CAMHAL_LOGEB("setCaptureMode() failed %d", ret);
+        LOG_FUNCTION_NAME_EXIT
+        return ret;
+        }
+
+    CAMHAL_LOGDB("Camera Mode = %d", mCapMode);
+
+    ret = setFormat(OMX_CAMERA_PORT_VIDEO_OUT_PREVIEW, *mPreviewData);
+    if ( ret != NO_ERROR )
+        {
+        CAMHAL_LOGEB("setFormat() failed %d", ret);
+        LOG_FUNCTION_NAME_EXIT
+        return ret;
+        }
+
+    setVFramerate(mPreviewData->mMinFrameRate, mPreviewData->mMaxFrameRate);
+
+    if(mCapMode == OMXCameraAdapter::VIDEO_MODE)
+        {
+        ///Enable/Disable Video Noise Filter
+        ret = enableVideoNoiseFilter(mVnfEnabled);
+        if ( NO_ERROR != ret)
+            {
+            CAMHAL_LOGEB("Error configuring VNF %x", ret);
+            return ret;
+            }
+
+        ///Enable/Disable Video Stabilization
+        ret = enableVideoStabilization(mVstabEnabled);
+        if ( NO_ERROR != ret)
+            {
+            CAMHAL_LOGEB("Error configuring VSTAB %x", ret);
+            return ret;
+            }
+        }
+    else
+        {
+        mVnfEnabled = false;
+        ret = enableVideoNoiseFilter(mVnfEnabled);
+        if ( NO_ERROR != ret)
+            {
+            CAMHAL_LOGEB("Error configuring VNF %x", ret);
+            return ret;
+            }
+        mVstabEnabled = false;
+        ///Enable/Disable Video Stabilization
+        ret = enableVideoStabilization(mVstabEnabled);
+        if ( NO_ERROR != ret)
+            {
+            CAMHAL_LOGEB("Error configuring VSTAB %x", ret);
+            return ret;
+            }
+        }
+    ///Register for IDLE state switch event
+    ret = RegisterForEvent(mCameraAdapterParameters.mHandleComp,
+                                OMX_EventCmdComplete,
+                                OMX_CommandStateSet,
+                                OMX_StateIdle,
+                                mUsePreviewSem, -1);
+    if(ret!=NO_ERROR)
+        {
+        CAMHAL_LOGEB("Error in registering for event %d", ret);
+        goto EXIT;
+        }
+
+
+    ///Once we get the buffers, move component state to idle state and pass the buffers to OMX comp using UseBuffer
+    eError = OMX_SendCommand (mCameraAdapterParameters.mHandleComp , OMX_CommandStateSet, OMX_StateIdle, NULL);
+
+    CAMHAL_LOGDB("OMX_SendCommand(OMX_CommandStateSet) 0x%x", eError);
+    GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
+
+    for(int index=0;index<num;index++)
+        {
+        OMX_BUFFERHEADERTYPE *pBufferHdr;
+        OMX_U8* ptr = (((uint32_t)bufArr) != NULL)?(OMX_U8*)buffers[index]:(OMX_U8*)0x0;
+        CAMHAL_LOGDB("OMX_UseBuffer(0x%x)", ptr);
+        eError = OMX_UseBuffer( mCameraAdapterParameters.mHandleComp,
+                                &pBufferHdr,
+                                mCameraAdapterParameters.mPrevPortIndex,
+                                0,
+                                mPreviewData->mBufSize,
+                                (OMX_U8*)ptr);
+        if(eError!=OMX_ErrorNone)
+            {
+            CAMHAL_LOGEB("OMX_UseBuffer-0x%x", eError);
+            }
+        GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
+
+        //pBufferHdr->pAppPrivate =  (OMX_PTR)pBufferHdr;
+        pBufferHdr->nSize = sizeof(OMX_BUFFERHEADERTYPE);
+        pBufferHdr->nVersion.s.nVersionMajor = 1 ;
+        pBufferHdr->nVersion.s.nVersionMinor = 1 ;
+        pBufferHdr->nVersion.s.nRevision = 0 ;
+        pBufferHdr->nVersion.s.nStep =  0;
+        mPreviewData->mBufferHeader[index] = pBufferHdr;
+        }
+
+    if ( mMeasurementEnabled )
+        {
+
+        for( int i = 0; i < num; i++ )
+            {
+            OMX_BUFFERHEADERTYPE *pBufHdr;
+            eError = OMX_UseBuffer( mCameraAdapterParameters.mHandleComp,
+                                    &pBufHdr,
+                                    mCameraAdapterParameters.mMeasurementPortIndex,
+                                    0,
+                                    measurementData->mBufSize,
+                                    (OMX_U8*)(mPreviewDataBuffers[i]));
+
+             if ( eError == OMX_ErrorNone )
+                {
+                pBufHdr->nSize = sizeof(OMX_BUFFERHEADERTYPE);
+                pBufHdr->nVersion.s.nVersionMajor = 1 ;
+                pBufHdr->nVersion.s.nVersionMinor = 1 ;
+                pBufHdr->nVersion.s.nRevision = 0 ;
+                pBufHdr->nVersion.s.nStep =  0;
+                pBufHdr->nFlags |= OMX_BUFFERHEADERFLAG_MODIFIED;
+                measurementData->mBufferHeader[i] = pBufHdr;
+                }
+            else
+                {
+                CAMHAL_LOGEB("OMX_UseBuffer -0x%x", eError);
+                ret = -1;
+                break;
+                }
+            }
+
+        }
+
+    CAMHAL_LOGDA("Waiting LOADED->IDLE state transition");
+    ///Wait for state to switch to idle
+    ret = mUsePreviewSem.WaitTimeout(OMX_CMD_TIMEOUT);
+    if ( NO_ERROR == ret )
+        {
+        CAMHAL_LOGDA("LOADED->IDLE state changed");
+        }
+    else
+        {
+        CAMHAL_LOGEA("Timeout expired on LOADED->IDLE state change");
+        goto EXIT;
+        }
+
+    mComponentState = OMX_StateIdle;
+
+    LOG_FUNCTION_NAME_EXIT
+    return (ret | ErrorUtils::omxToAndroidError(eError));
+
+    ///If there is any failure, we reach here.
+    ///Here, we do any resource freeing and convert from OMX error code to Camera Hal error code
+    EXIT:
+
+    CAMHAL_LOGEB("Exiting function %s because of ret %d eError=%x", __FUNCTION__, ret, eError);
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return (ret | ErrorUtils::omxToAndroidError(eError));
 }
 
 status_t OMXCameraAdapter::switchToLoaded()
@@ -3259,266 +3678,7 @@ status_t OMXCameraAdapter::switchToLoaded()
     return ret;
 }
 
-status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
-{
-    status_t ret = NO_ERROR;
-    OMX_ERRORTYPE eError = OMX_ErrorNone;
-    int tmpHeight, tmpWidth;
 
-    LOG_FUNCTION_NAME
-
-    ///Flag to determine whether it is 3D camera or not
-    bool isS3d = false;
-    const char *valstr = NULL;
-    if ( (valstr = mParams.get(TICameraParameters::KEY_S3D_SUPPORTED)) != NULL) {
-        isS3d = (strcmp(valstr, "true") == 0);
-    }
-
-    if(!bufArr)
-        {
-        CAMHAL_LOGEA("NULL pointer passed for buffArr");
-        LOG_FUNCTION_NAME_EXIT
-        return BAD_VALUE;
-        }
-
-    OMXCameraPortParameters *mPreviewData = NULL;
-    OMXCameraPortParameters *measurementData = NULL;
-    mPreviewData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
-    measurementData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mMeasurementPortIndex];
-    mPreviewData->mNumBufs = num;
-    uint32_t *buffers = (uint32_t*)bufArr;
-    Semaphore eventSem;
-    ret = eventSem.Create(0);
-    if(ret!=NO_ERROR)
-        {
-        CAMHAL_LOGEB("Error in creating semaphore 0x%x", ret);
-        LOG_FUNCTION_NAME_EXIT
-        return ret;
-        }
-
-    if ( mPreviewing )
-        {
-        CAMHAL_LOGEA("Trying to change preview buffers while preview is running!");
-        return NO_INIT;
-        }
-    else if(mPreviewData->mNumBufs != num)
-        {
-        CAMHAL_LOGEA("Current number of buffers doesnt equal new num of buffers passed!");
-        LOG_FUNCTION_NAME_EXIT
-        return BAD_VALUE;
-        }
-
-    if ( mComponentState == OMX_StateLoaded )
-        {
-
-        ret = setLDC(mIPP);
-        if ( NO_ERROR != ret )
-            {
-            CAMHAL_LOGEB("setLDC() failed %d", ret);
-            LOG_FUNCTION_NAME_EXIT
-            return ret;
-            }
-
-        ret = setNSF(mIPP);
-        if ( NO_ERROR != ret )
-            {
-            CAMHAL_LOGEB("setNSF() failed %d", ret);
-            LOG_FUNCTION_NAME_EXIT
-            return ret;
-            }
-
-        ret = setCaptureMode(mCapMode);
-        if ( NO_ERROR != ret )
-            {
-            CAMHAL_LOGEB("setCaptureMode() failed %d", ret);
-            LOG_FUNCTION_NAME_EXIT
-            return ret;
-            }
-
-        CAMHAL_LOGDB("Camera Mode = %d", mCapMode);
-
-        if( ( mCapMode == OMXCameraAdapter::VIDEO_MODE ) ||
-            ( isS3d && (mCapMode == OMXCameraAdapter::HIGH_QUALITY)) )
-            {
-            ///Enable/Disable Video Noise Filter
-            ret = enableVideoNoiseFilter(mVnfEnabled);
-            if ( NO_ERROR != ret)
-                {
-                CAMHAL_LOGEB("Error configuring VNF %x", ret);
-                return ret;
-                }
-
-            ///Enable/Disable Video Stabilization
-            ret = enableVideoStabilization(mVstabEnabled);
-            if ( NO_ERROR != ret)
-                {
-                CAMHAL_LOGEB("Error configuring VSTAB %x", ret);
-                return ret;
-                }
-            }
-        else
-            {
-            ret = enableVideoNoiseFilter(false);
-            if ( NO_ERROR != ret)
-                {
-                CAMHAL_LOGEB("Error configuring VNF %x", ret);
-                return ret;
-                }
-            ///Enable/Disable Video Stabilization
-            ret = enableVideoStabilization(false);
-            if ( NO_ERROR != ret)
-                {
-                CAMHAL_LOGEB("Error configuring VSTAB %x", ret);
-                return ret;
-                }
-            }
-        }
-
-    ret = setSensorOrientation(mSensorOrientation);
-    if ( NO_ERROR != ret )
-        {
-        CAMHAL_LOGEB("Error configuring Sensor Orientation %x", ret);
-        mSensorOrientation = 0;
-        }
-
-    ret = setVFramerate(mPreviewData->mMinFrameRate, mPreviewData->mMaxFrameRate);
-    if ( ret != NO_ERROR )
-        {
-        CAMHAL_LOGEB("VFR configuration failed 0x%x", ret);
-        LOG_FUNCTION_NAME_EXIT
-        return ret;
-        }
-
-    if ( mComponentState == OMX_StateLoaded )
-        {
-        ///Register for IDLE state switch event
-        ret = RegisterForEvent(mCameraAdapterParameters.mHandleComp,
-                               OMX_EventCmdComplete,
-                               OMX_CommandStateSet,
-                               OMX_StateIdle,
-                               eventSem,
-                               -1);
-
-        if(ret!=NO_ERROR)
-            {
-            CAMHAL_LOGEB("Error in registering for event %d", ret);
-            goto EXIT;
-            }
-
-        ///Once we get the buffers, move component state to idle state and pass the buffers to OMX comp using UseBuffer
-        eError = OMX_SendCommand(mCameraAdapterParameters.mHandleComp,
-                                  OMX_CommandStateSet,
-                                  OMX_StateIdle,
-                                  NULL);
-
-        CAMHAL_LOGDB("OMX_SendCommand(OMX_CommandStateSet) 0x%x", eError);
-
-        GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
-
-        mComponentState = OMX_StateIdle;
-        }
-    else
-        {
-        ///Register for Preview port ENABLE event
-        ret = RegisterForEvent(mCameraAdapterParameters.mHandleComp,
-                               OMX_EventCmdComplete,
-                               OMX_CommandPortEnable,
-                               mCameraAdapterParameters.mPrevPortIndex,
-                               eventSem,
-                               -1);
-
-        if ( NO_ERROR != ret )
-            {
-            CAMHAL_LOGEB("Error in registering for event %d", ret);
-            goto EXIT;
-            }
-
-        ///Enable Preview Port
-        eError = OMX_SendCommand(mCameraAdapterParameters.mHandleComp,
-                                 OMX_CommandPortEnable,
-                                 mCameraAdapterParameters.mPrevPortIndex,
-                                 NULL);
-        }
-
-    for (int index = 0; index < num; index++)
-        {
-        OMX_BUFFERHEADERTYPE *pBufferHdr;
-        CAMHAL_LOGDB("OMX_UseBuffer(0x%x)", buffers[index]);
-        eError = OMX_UseBuffer(mCameraAdapterParameters.mHandleComp,
-                                &pBufferHdr,
-                                mCameraAdapterParameters.mPrevPortIndex,
-                                0,
-                                mPreviewData->mBufSize,
-                                (OMX_U8*)buffers[index]);
-        if(eError!=OMX_ErrorNone)
-            {
-            CAMHAL_LOGEB("OMX_UseBuffer-0x%x", eError);
-            }
-        GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
-
-        //pBufferHdr->pAppPrivate =  (OMX_PTR)pBufferHdr;
-        pBufferHdr->nSize = sizeof(OMX_BUFFERHEADERTYPE);
-        pBufferHdr->nVersion.s.nVersionMajor = 1;
-        pBufferHdr->nVersion.s.nVersionMinor = 1;
-        pBufferHdr->nVersion.s.nRevision = 0;
-        pBufferHdr->nVersion.s.nStep = 0;
-        mPreviewData->mBufferHeader[index] = pBufferHdr;
-        }
-
-    if ( mMeasurementEnabled )
-        {
-        for (int i = 0; i < measurementData->mNumBufs; i++)
-            {
-            OMX_BUFFERHEADERTYPE *pBufHdr;
-            eError = OMX_UseBuffer( mCameraAdapterParameters.mHandleComp,
-                                    &pBufHdr,
-                                    mCameraAdapterParameters.mMeasurementPortIndex,
-                                    0,
-                                    measurementData->mBufSize,
-                                    (OMX_U8*)(mPreviewDataBuffers[i]));
-
-            if ( eError == OMX_ErrorNone )
-                {
-                pBufHdr->nSize = sizeof(OMX_BUFFERHEADERTYPE);
-                pBufHdr->nVersion.s.nVersionMajor = 1;
-                pBufHdr->nVersion.s.nVersionMinor = 1;
-                pBufHdr->nVersion.s.nRevision = 0;
-                pBufHdr->nVersion.s.nStep = 0;
-                measurementData->mBufferHeader[i] = pBufHdr;
-                }
-            else
-                {
-                CAMHAL_LOGEB("OMX_UseBuffer -0x%x", eError);
-                ret = -1;
-                break;
-                }
-            }
-        }
-
-    CAMHAL_LOGDA("Registering preview buffers");
-    ret = eventSem.Wait();
-    CAMHAL_LOGDA("Preview buffer registration successfull");
-
-    LOG_FUNCTION_NAME_EXIT
-
-    return (ret | ErrorUtils::omxToAndroidError(eError));
-
-    ///If there is any failure, we reach here.
-    ///Here, we do any resource freeing and convert from OMX error code to Camera Hal error code
-    EXIT:
-    LOG_FUNCTION_NAME_EXIT
-    CAMHAL_LOGEB("Exiting function %s because of ret %d eError=%x", __FUNCTION__, ret, eError);
-
-    if ( eError != OMX_ErrorNone )
-        {
-        if ( NULL != mErrorNotifier )
-            {
-            mErrorNotifier->errorNotify(eError);
-            }
-        }
-
-    return (ret | ErrorUtils::omxToAndroidError(eError));
-}
 
 status_t OMXCameraAdapter::UseBuffersCapture(void* bufArr, int num)
 {
@@ -3715,11 +3875,34 @@ status_t OMXCameraAdapter::stopSmoothZoom()
 status_t OMXCameraAdapter::startPreview()
 {
     status_t ret = NO_ERROR;
+    Message msg = {0,0,0,0,0,0};
+
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMXCameraPortParameters *mPreviewData = NULL;
     OMXCameraPortParameters *measurementData = NULL;
 
     LOG_FUNCTION_NAME
+
+    msg.command = CommandHandler::CAMERA_START_PREVIEW;
+    msg.arg1 = mErrorNotifier;
+    ret = mCommandHandler->put(&msg);
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+
+}
+
+status_t OMXCameraAdapter::doStartPreview()
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+
+    if(!mPreviewInProgress)
+        {
+        //Preview start is cancelled
+        return NO_ERROR;
+        }
 
     Semaphore eventSem;
     ret = eventSem.Create(0);
@@ -3738,8 +3921,8 @@ status_t OMXCameraAdapter::startPreview()
         return NO_INIT;
         }
 
-    mPreviewData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
-    measurementData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mMeasurementPortIndex];
+    OMXCameraPortParameters *mPreviewData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
+    OMXCameraPortParameters *measurementData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mMeasurementPortIndex];
 
     if( OMX_StateIdle == mComponentState )
         {
@@ -6498,6 +6681,38 @@ status_t OMXCameraAdapter::startBracketing(int range)
     return ret;
 }
 
+status_t OMXCameraAdapter::doHDRProcessing(OMX_BUFFERHEADERTYPE *pBuffHeader, int outputPortIndex)
+{
+    status_t ret = NO_ERROR;
+    OMXCameraPortParameters * imgCaptureData = NULL;
+    CameraFrame::FrameType typeOfFrame = CameraFrame::ALL_FRAMES;
+
+    LOG_FUNCTION_NAME
+
+    imgCaptureData = &mCameraAdapterParameters.mCameraPortParams[outputPortIndex];
+
+    ret = mHDRInterface->setDataBuffers(pBuffHeader->pBuffer, pBuffHeader->nFilledLen, pBuffHeader->nOffset);
+    if ( ret == 0 )
+        {
+        CAMHAL_LOGEA("HDR Inteface setDataBuffers failed\n");
+        }
+
+    if ( OMX_COLOR_FormatUnused == mCameraAdapterParameters.mCameraPortParams[outputPortIndex].mColorFormat )
+        {
+        typeOfFrame = CameraFrame::IMAGE_FRAME;
+        }
+    else
+        {
+        typeOfFrame = CameraFrame::RAW_FRAME;
+        }
+    CAMHAL_LOGEB("mCapturedFrames = %d\n", mCapturedFrames);
+    if ( mCapturedFrames == 3 )
+       {
+       returnFrame(pBuffHeader->pBuffer, typeOfFrame);
+       }
+    return ret;
+}
+
 status_t OMXCameraAdapter::doBracketing(OMX_BUFFERHEADERTYPE *pBuffHeader, CameraFrame::FrameType typeOfFrame)
 {
     status_t ret = NO_ERROR;
@@ -6622,6 +6837,7 @@ status_t OMXCameraAdapter::takePicture()
     LOG_FUNCTION_NAME
 
     msg.command = CommandHandler::CAMERA_START_IMAGE_CAPTURE;
+    msg.arg1 = mErrorNotifier;
     ret = mCommandHandler->put(&msg);
 
     LOG_FUNCTION_NAME_EXIT
@@ -9043,7 +9259,8 @@ bool OMXCameraAdapter::CommandHandler::Handler()
             errorNotify = ( ErrorNotifier * ) msg.arg1;
             if ( NULL != errorNotify )
                 {
-                errorNotify->errorNotify(CAMERA_ERROR_UKNOWN);
+                /* FIXME-HASH: CAMERA_ERROR_UNKNOWN not defined */
+                errorNotify->errorNotify(1); // CAMERA_ERROR_UNKNOWN
                 }
             }
     }

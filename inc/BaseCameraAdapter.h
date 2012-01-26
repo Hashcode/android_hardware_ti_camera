@@ -37,6 +37,7 @@ public:
     virtual status_t initialize(int sensor_index = 0) = 0;
 
     virtual int setErrorHandler(ErrorNotifier *errorNotifier);
+    virtual int setCafHandler(CafNotifier *cafNotifier);
 
     //Message/Frame notification APIs
     virtual void enableMsgType(int32_t msgs, frame_callback callback=NULL, event_callback eventCb=NULL, void* cookie=NULL);
@@ -62,6 +63,12 @@ public:
     //API to get the frame size required to be allocated. This size is used to override the size passed
     //by camera service when VSTAB/VNF is turned ON for example
     virtual void getFrameSize(int &width, int &height) = 0;
+
+    //Get Camera Calibration status
+    virtual int getCameraCalStatus() = 0;
+
+    //Get Camera Module information
+    virtual bool getCameraModuleQueryString(char *str, unsigned long length) = 0;
 
     virtual status_t getFrameDataSize(size_t &dataFrameSize, size_t bufferCount) = 0;
 
@@ -123,6 +130,10 @@ protected:
     //Should be implemented by deriving classes in order queue a released buffer in CameraAdapter
     virtual status_t fillThisBuffer(void* frameBuf, CameraFrame::FrameType frameType);
 
+    //Should be implemented by deriving class in order to send HDR JPEG frames to subscribers
+    virtual status_t completeHDRProcessing(void* jpegBuf, int len);
+
+
     // ---------------------Interface ends-----------------------------------
 
     status_t notifyFocusSubscribers(bool status);
@@ -177,6 +188,7 @@ protected:
     KeyedVector<int, event_callback> mFocusSubscribers;
     KeyedVector<int, event_callback> mZoomSubscribers;
     KeyedVector<int, event_callback> mShutterSubscribers;
+    KeyedVector<int, frame_callback> mSnapshotSubscribers;
 
     //Preview buffer management data
     int *mPreviewBuffers;
@@ -210,11 +222,13 @@ protected:
     MessageQueue mAdapterQ;
     mutable Mutex mSubscriberLock;
     ErrorNotifier *mErrorNotifier;
+    CafNotifier *mCafNotifier;
     release_image_buffers_callback mReleaseImageBuffersCallback;
     end_image_capture_callback mEndImageCaptureCallback;
     void *mReleaseData;
     void *mEndCaptureData;
     bool mRecording;
+
 };
 
 };

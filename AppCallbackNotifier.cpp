@@ -120,6 +120,23 @@ void AppCallbackNotifier::errorNotify(int error)
     LOG_FUNCTION_NAME_EXIT
 }
 
+void AppCallbackNotifier::cafNotify(int cafStatus)
+{
+    LOG_FUNCTION_NAME
+
+    CAMHAL_LOGEB("AppCallbackNotifier received caf status %d", cafStatus);
+
+    ///Notify errors to application in callback thread. Post error event to event queue
+    Message msg;
+    msg.command = AppCallbackNotifier::NOTIFIER_CMD_PROCESS_CAF;
+    msg.arg1 = (void*)cafStatus;
+
+    mEventQ.put(&msg);
+
+    LOG_FUNCTION_NAME_EXIT
+}
+
+
 void AppCallbackNotifier::notificationThread()
 {
     bool shouldLive = true;
@@ -204,6 +221,9 @@ void AppCallbackNotifier::notifyEvent()
 
             switch(evt->mEventType)
                 {
+                case CameraHalEvent::NO_EVENTS:
+                    break;
+
                 case CameraHalEvent::EVENT_SHUTTER:
 
                     if ( ( NULL != mCameraHal.get() ) &&
@@ -249,6 +269,36 @@ void AppCallbackNotifier::notifyEvent()
 
                     break;
 
+                case CameraHalEvent::EVENT_FACE:
+/* FIXME-HASH: EVENT_FACE handling for later */
+#if 0
+
+                    faceEvtData = evt->mEventData->faceEvent;
+
+                    if ( ( NULL != mCameraHal ) &&
+                         ( NULL != mNotifyCb) &&
+                         ( mCameraHal->msgTypeEnabled(CAMERA_MSG_PREVIEW_METADATA) ) )
+                        {
+                        // WA for an issue inside CameraService
+                        camera_memory_t *tmpBuffer = mRequestMemory(-1, 1, 1, NULL);
+
+                        mDataCb(CAMERA_MSG_PREVIEW_METADATA,
+                                tmpBuffer,
+                                0,
+                                faceEvtData->getFaceResult(),
+                                mCallbackCookie);
+
+                        faceEvtData.clear();
+
+                        if ( NULL != tmpBuffer ) {
+                            tmpBuffer->release(tmpBuffer);
+                        }
+
+                        }
+
+                    break;
+#endif
+
                 case CameraHalEvent::ALL_EVENTS:
                     break;
                 default:
@@ -263,7 +313,8 @@ void AppCallbackNotifier::notifyEvent()
                   ( NULL != mNotifyCb ) &&
                   ( mCameraHal->msgTypeEnabled(CAMERA_MSG_ERROR) ) )
                 {
-                mNotifyCb(CAMERA_MSG_ERROR, CAMERA_ERROR_UKNOWN, 0, mCallbackCookie);
+                // FIXME-HASH: Might need this
+                //mNotifyCb(CAMERA_MSG_ERROR, CAMERA_ERROR_UKNOWN, 0, mCallbackCookie);
                 }
 
             break;
@@ -451,7 +502,8 @@ void AppCallbackNotifier::notifyFrame()
                         if (buf)
                           memcpy(buf, ( void * ) ( (unsigned int) frame->mBuffer + frame->mOffset) , frame->mLength);
 
-                        mDataCb(CAMERA_MSG_RAW_IMAGE, RAWPictureMemBase, mCallbackCookie);
+                        /* FIXME-HASH: Added NULL to data_callback */
+                        mDataCb(CAMERA_MSG_RAW_IMAGE, RAWPictureMemBase, NULL, mCallbackCookie);
 
                         mFrameProvider->returnFrame(frame->mBuffer,  ( CameraFrame::FrameType ) frame->mFrameType);
                         }
@@ -460,7 +512,8 @@ void AppCallbackNotifier::notifyFrame()
                         sp<MemoryHeapBase> RAWPictureHeap = new MemoryHeapBase(EMPTY_RAW_SIZE);
                         sp<MemoryBase> RAWPictureMemBase = new MemoryBase(RAWPictureHeap, 0, EMPTY_RAW_SIZE);
 
-                        mDataCb(CAMERA_MSG_RAW_IMAGE, RAWPictureMemBase, mCallbackCookie);
+                        /* FIXME-HASH: Added NULL to data_callback */
+                        mDataCb(CAMERA_MSG_RAW_IMAGE, RAWPictureMemBase, NULL, mCallbackCookie);
                         }
 
 #else
@@ -489,11 +542,13 @@ void AppCallbackNotifier::notifyFrame()
                             Mutex::Autolock lock(mBurstLock);
                             if ( mBurst )
                                 {
-                                mDataCb(CAMERA_MSG_BURST_IMAGE, JPEGPictureMemBase, mCallbackCookie);
+                                /* FIXME-HASH: Added NULL to data_callback */
+                                mDataCb(CAMERA_MSG_BURST_IMAGE, JPEGPictureMemBase, NULL, mCallbackCookie);
                                 }
                             else
                                 {
-                                mDataCb(CAMERA_MSG_COMPRESSED_IMAGE, JPEGPictureMemBase, mCallbackCookie);
+                                /* FIXME-HASH: Added NULL to data_callback */
+                                mDataCb(CAMERA_MSG_COMPRESSED_IMAGE, JPEGPictureMemBase, NULL, mCallbackCookie);
                                 }
                         }
 #else
@@ -529,8 +584,7 @@ void AppCallbackNotifier::notifyFrame()
                         {
                         //CAMHAL_LOGDB("+CB 0x%x buffer 0x%x", frame->mBuffer, buffer);
 #ifdef OMAP_ENHANCEMENT
-                        mDataCbTimestamp(frame->mTimestamp, CAMERA_MSG_VIDEO_FRAME, buffer, mCallbackCookie
-                                                , frame->mOffset, PAGE_SIZE);
+                        mDataCbTimestamp(frame->mTimestamp, CAMERA_MSG_VIDEO_FRAME, buffer, mCallbackCookie); // , frame->mOffset, PAGE_SIZE)
 #else
                         mDataCbTimestamp(frame->mTimestamp, CAMERA_MSG_VIDEO_FRAME, buffer, mCallbackCookie);
 #endif
@@ -597,7 +651,7 @@ void AppCallbackNotifier::notifyFrame()
                             {
 
                             ///Give preview callback to app
-                            mDataCb(CAMERA_MSG_POSTVIEW_FRAME, memBase, mCallbackCookie);
+                            mDataCb(CAMERA_MSG_POSTVIEW_FRAME, memBase, NULL, mCallbackCookie);
                             }
 
                         }
@@ -658,7 +712,8 @@ void AppCallbackNotifier::notifyFrame()
                             }
 
                         ///Give preview callback to app
-                        mDataCb(CAMERA_MSG_PREVIEW_FRAME, memBase, mCallbackCookie);
+                        /* FIXME-HASH: Added NULL to data_callback */
+                        mDataCb(CAMERA_MSG_PREVIEW_FRAME, memBase, NULL, mCallbackCookie);
 
                         }
 
@@ -715,7 +770,8 @@ void AppCallbackNotifier::notifyFrame()
                         }
 
                     ///Give preview callback to app
-                    mDataCb(CAMERA_MSG_PREVIEW_FRAME, memBase, mCallbackCookie);
+                    /* FIXME-HASH: Added NULL to data_callback */
+                    mDataCb(CAMERA_MSG_PREVIEW_FRAME, memBase, NULL, mCallbackCookie);
 
                     mFrameProvider->returnFrame(frame->mBuffer,  ( CameraFrame::FrameType ) frame->mFrameType);
 

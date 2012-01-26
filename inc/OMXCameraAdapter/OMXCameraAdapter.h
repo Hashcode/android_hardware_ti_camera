@@ -38,6 +38,7 @@
 
 #include "BaseCameraAdapter.h"
 #include "DebugUtils.h"
+#include "MotHDRInterface.h"
 
 
 extern "C"
@@ -50,37 +51,36 @@ extern "C"
 
 namespace android {
 
-#define FOCUS_THRESHOLD             5 //[s.]
+#define FOCUS_THRESHOLD  5 //[s.]
 
-#define MIN_JPEG_QUALITY            1
-#define MAX_JPEG_QUALITY            100
-#define EXP_BRACKET_RANGE           10
+#define MIN_JPEG_QUALITY 1
+#define MAX_JPEG_QUALITY 100
+#define EXP_BRACKET_RANGE 10
 
-#define FOCUS_DIST_SIZE             100
-#define FOCUS_DIST_BUFFER_SIZE      500
+#define FOCUS_DIST_SIZE         100
+#define FOCUS_DIST_BUFFER_SIZE  500
 
-#define TOUCH_DATA_SIZE             200
-#define DEFAULT_THUMB_WIDTH         160
-#define DEFAULT_THUMB_HEIGHT        120
-#define FRAME_RATE_FULL_HD          27
-#define ZOOM_STAGES                 61
-
+#define TOUCH_DATA_SIZE         200
+#define DEFAULT_THUMB_WIDTH     160
+#define DEFAULT_THUMB_HEIGHT    120
+#define FRAME_RATE_FULL_HD      27
+#define ZOOM_STAGES 61
 #define FACE_DETECTION_BUFFER_SIZE  0x1000
 
-#define EXIF_MODEL_SIZE             100
-#define EXIF_MAKE_SIZE              100
-#define EXIF_DATE_TIME_SIZE         20
+#define EXIF_MODEL_SIZE 100
+#define EXIF_MAKE_SIZE  100
+#define EXIF_DATE_TIME_SIZE 20
 
-#define GPS_TIMESTAMP_SIZE          6
-#define GPS_DATESTAMP_SIZE          11
-#define GPS_REF_SIZE                2
-#define GPS_MAPDATUM_SIZE           100
-#define GPS_PROCESSING_SIZE         100
+#define GPS_TIMESTAMP_SIZE       6
+#define GPS_DATESTAMP_SIZE      11
+#define GPS_REF_SIZE                    2
+#define GPS_MAPDATUM_SIZE       100
+#define GPS_PROCESSING_SIZE     100
 #define GPS_VERSION_SIZE            4
-#define GPS_NORTH_REF               "N"
-#define GPS_SOUTH_REF               "S"
-#define GPS_EAST_REF                "E"
-#define GPS_WEST_REF                "W"
+#define GPS_NORTH_REF                "N"
+#define GPS_SOUTH_REF                "S"
+#define GPS_EAST_REF                   "E"
+#define GPS_WEST_REF                  "W"
 
 /* Default portstartnumber of Camera component */
 #define OMX_CAMERA_DEFAULT_START_PORT_NUM 0
@@ -209,6 +209,8 @@ public:
         HIGH_SPEED = 1,
         HIGH_QUALITY = 2,
         VIDEO_MODE = 3,
+        HIGH_QUALITY_NOTSET = 4,
+        HIGH_QUALITY_NONZSL = 5,
         };
 
     enum IPPMode
@@ -365,12 +367,23 @@ public:
     //API to flush the buffers for preview
     status_t flushBuffers();
 
+    //API to send callback to HDR JPEG data
+    status_t completeHDRProcessing(void* jpegBuf, int len);
+
     // API
     virtual status_t setFormat(OMX_U32 port, OMXCameraPortParameters &cap);
+
+   //API to set FrameRate using VFR interface
 
     //API to get the frame size required to be allocated. This size is used to override the size passed
     //by camera service when VSTAB/VNF is turned ON for example
     virtual void getFrameSize(int &width, int &height);
+
+    //Get Camera Calibration status
+    virtual int getCameraCalStatus();
+
+    //Get Camera Module information
+    virtual bool getCameraModuleQueryString(char *str, unsigned long length);
 
     virtual status_t getPictureBufferSize(size_t &length, size_t bufferCount);
 
@@ -437,6 +450,9 @@ private:
     //Geo-tagging
     status_t convertGPSCoord(double coord, int *deg, int *min, int *sec);
     status_t setupEXIF();
+
+    status_t doStartPreview();
+    status_t doUseBuffersPreview(void* bufArr, int num);
 
     //Focus functionality
     status_t doAutoFocus();
@@ -551,6 +567,9 @@ private:
     // Image Capture Service
     status_t startImageCapture();
 
+    // HDR Capture Service
+    status_t doHDRProcessing(OMX_BUFFERHEADERTYPE *pBuffHeader, int outputPortIndex);
+
     //Shutter callback notifications
     status_t setShutterCallback(bool enabled);
 
@@ -573,7 +592,7 @@ private:
 
 
     //Sends the incoming OMX buffer header to subscribers
-    status_t sendFrame(CameraFrame &frame);
+    status_t sendFrame(OMX_IN OMX_BUFFERHEADERTYPE *pBuffHeader, CameraFrame &frame);
 
     //Sends empty raw frames in case there aren't any during image capture
     status_t sendEmptyRawFrame();
@@ -586,6 +605,7 @@ private:
     status_t setAutoConvergence(OMX_TI_AUTOCONVERGENCEMODETYPE pACMode, OMX_S32 pManualConverence);
     status_t getAutoConvergence(OMX_TI_AUTOCONVERGENCEMODETYPE *pACMode, OMX_S32 *pManualConverence);
 
+    friend class CommandHandler;
     class CommandHandler : public Thread {
         public:
             CommandHandler(OMXCameraAdapter* ca)
@@ -603,7 +623,9 @@ private:
 
             enum {
                 COMMAND_EXIT = -1,
-                CAMERA_START_IMAGE_CAPTURE = 0,
+                CAMERA_START_PREVIEW=0,
+                CAMERA_USE_BUFFERS_PREVIEW,
+                CAMERA_START_IMAGE_CAPTURE,
                 CAMERA_PERFORM_AUTOFOCUS
             };
 
@@ -613,6 +635,43 @@ private:
             OMXCameraAdapter* mCameraAdapter;
     };
     sp<CommandHandler> mCommandHandler;
+
+    // Motorola specific - begin
+    status_t setEnManualExposure(bool bEnable);
+    status_t setExposureTime(unsigned int expTimeMicroSec);
+    status_t setExposureGain(int expGain100thdB);
+
+    status_t setEnableTargetedExposure(bool bEnable);
+    status_t setTargetExpValue(unsigned char expTimeMicroSec);
+
+    status_t setEnableColorBars(bool bEnable);
+
+    status_t setEnLensPosGetSet(int val);
+    status_t setLensPosition(int positionPercent);
+    status_t setMIPIReset(void);
+
+    status_t setLedFlash(int nLedFlashIntensP);
+    status_t setLedTorch(int nLedTorchIntensP);
+
+    status_t setManualExposureTimeMs(unsigned int expTimeMilliSec);
+    int CamCalCheck(void);
+
+    // camera calibration status
+    enum CalStatus {
+        CAL_STATUS_NOT_SUPPORTED = 0,
+        CAL_STATUS_SUCCESS,
+        CAL_STATUS_FIRSTTIME,
+        CAL_STATUS_DATA_MISSING,
+        CAL_STATUS_DATA_MISMATCH,
+        CAL_STATUS_DATA_CORRUPT,
+        CAL_STATUS_FAILURE,
+    };
+
+    int mEnLensPos;
+
+public:
+    status_t getOTPEeprom(unsigned char * pData, unsigned long nSize);
+    // Motorola specific - end
 
 public:
 
@@ -722,6 +781,10 @@ private:
     bool mBracketingEnabled;
     int mBracketingRange;
 
+    // HDR Capture
+    bool mHDRCaptureEnabled;
+    MotHDRInterface *mHDRInterface;
+
     CameraParameters mParameters;
     OMXCameraAdapterComponentContext mCameraAdapterParameters;
     bool mFirstTimeInit;
@@ -729,10 +792,21 @@ private:
     S3DFrameLayout mS3DImageFormat;
 
     ///Semaphores used internally
+    Semaphore mInitSem;
+    Semaphore mFlushSem;
+    Semaphore mUsePreviewDataSem;
+    Semaphore mUsePreviewSem;
+    Semaphore mUseCaptureSem;
+    Semaphore mStartPreviewSem;
+    Semaphore mStopPreviewSem;
+    Semaphore mStartCaptureSem;
+    Semaphore mStopCaptureSem;
+
     Vector<struct Message *> mEventSignalQ;
     Mutex mLock;
     bool mPreviewing;
     bool mCapturing;
+    bool mFlushBuffers;
 
     OMX_STATETYPE mComponentState;
 
@@ -764,6 +838,8 @@ private:
     Semaphore mCaptureSem;
     bool mCaptureSignalled;
 
+    bool mPreviewInProgress;
+    Mutex mPreviewStartLock;
     void *mSMALCDataRecord;
     unsigned int mSMALCDataSize;
     void *mSMALC_DCCFileDesc;

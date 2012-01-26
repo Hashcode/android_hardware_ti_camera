@@ -43,7 +43,8 @@
 #include <ui/FramebufferNativeWindow.h>
 #include <camera/CameraParameters.h>
 #include <hardware/camera.h>
-#include "CameraHardwareInterface.h"
+#include "CameraHalMotBase.h"
+//#include "CameraHardwareInterface.h"
 #include "MessageQueue.h"
 #include "Semaphore.h"
 #include "CameraProperties.h"
@@ -57,8 +58,8 @@
 #define PREVIEW_HEIGHT 144
 #define PIXEL_FORMAT           V4L2_PIX_FMT_UYVY
 
-#define VIDEO_FRAME_COUNT_MAX    NUM_OVERLAY_BUFFERS_REQUESTED
-#define MAX_CAMERA_BUFFERS    NUM_OVERLAY_BUFFERS_REQUESTED
+#define VIDEO_FRAME_COUNT_MAX    8 //NUM_OVERLAY_BUFFERS_REQUESTED
+#define MAX_CAMERA_BUFFERS       8 //NUM_OVERLAY_BUFFERS_REQUESTED
 #define MAX_ZOOM        3
 #define THUMB_WIDTH     80
 #define THUMB_HEIGHT    60
@@ -69,14 +70,29 @@
 #define SHARPNESS_OFFSET 100
 #define CONTRAST_OFFSET 100
 
+#define CAMHAL_GRALLOC_USAGE GRALLOC_USAGE_HW_TEXTURE | \
+                             GRALLOC_USAGE_HW_RENDER | \
+                             GRALLOC_USAGE_SW_READ_RARELY | \
+                             GRALLOC_USAGE_SW_WRITE_NEVER
+
 #define MAX_MANUAL_EXPOSURE_MS 66 //[ms.]
 #define MAX_MANUAL_GAIN_ISO 3200
+
+#define DEFAULT_INTENSITY 100
+#define FLASH_VOLTAGE_THRESHOLD1 3700000 // intensity will be reduced to 50% below threshold1
+#define FLASH_VOLTAGE_THRESHOLD2 3300000 // flash disabled below threshold2
 
 //Enables Absolute PPM measurements in logcat
 #define PPM_INSTRUMENTATION_ABS 1
 
+#define LOCK_BUFFER_TRIES 5
+
+//TCInterface
+#define DEFAULT_VENDOR_STRING "Unknown,DefaultCamera,Rev1"
+#define MAX_VENDOR_STRING_SIZE 128
+
 //Uncomment to enable more verbose/debug logs
-//#define DEBUG_LOG
+#define DEBUG_LOG
 
 ///Camera HAL Logging Functions
 #ifndef DEBUG_LOG
@@ -236,6 +252,7 @@ public:
         EVENT_FOCUS_ERROR = 0x2,
         EVENT_ZOOM_INDEX_REACHED = 0x4,
         EVENT_SHUTTER = 0x8,
+        EVENT_FACE = 0x10,
         ///@remarks Future enum related to display, like frame displayed event, could be added here
         ALL_EVENTS = 0xFFFF ///Maximum of 16 event types supported
         };
@@ -326,6 +343,13 @@ public:
     virtual ~ErrorNotifier() {};
 };
 
+class CafNotifier : public virtual RefBase
+{
+public:
+    virtual void cafNotify(int cafStatus) = 0;
+
+    virtual ~CafNotifier() {};
+};
 
 /**
   * Interace class abstraction for Camera Adapter to act as a frame provider
@@ -394,7 +418,7 @@ public:
 /**
   * Class for handling data and notify callbacks to application
   */
-class   AppCallbackNotifier: public ErrorNotifier, public virtual RefBase
+class   AppCallbackNotifier: public ErrorNotifier, public CafNotifier, public virtual RefBase
 {
 
 public:
@@ -408,7 +432,8 @@ public:
         {
         NOTIFIER_CMD_PROCESS_EVENT,
         NOTIFIER_CMD_PROCESS_FRAME,
-        NOTIFIER_CMD_PROCESS_ERROR
+        NOTIFIER_CMD_PROCESS_ERROR,
+        NOTIFIER_CMD_PROCESS_CAF
         };
 
     enum NotifierState
@@ -416,6 +441,15 @@ public:
         NOTIFIER_STOPPED,
         NOTIFIER_STARTED,
         NOTIFIER_EXITED
+        };
+
+    enum CafNotifierState
+        {
+        CAF_MSG_NULL,
+        CAF_MSG_PAUSED,
+        CAF_MSG_RUNNING,
+        CAF_MSG_FOCUS_REQ,
+        CAF_MSG_DEBUG
         };
 
 public:
@@ -436,6 +470,7 @@ public:
 
     //All sub-components of Camera HAL call this whenever any error happens
     virtual void errorNotify(int error);
+    virtual void cafNotify(int cafStatus);
 
     sp<IMemoryHeap> getPreviewHeap();
     status_t startPreviewCallbacks(CameraParameters &params, void *buffers, uint32_t *offsets, int fd, size_t length, size_t count);
@@ -601,7 +636,8 @@ public:
         CAMERA_SET_TIMEOUT,
         CAMERA_CANCEL_TIMEOUT,
         CAMERA_START_BRACKET_CAPTURE,
-        CAMERA_STOP_BRACKET_CAPTURE
+        CAMERA_STOP_BRACKET_CAPTURE,
+        CAMERA_COMPLETE_HDR_PROCESSING
         };
 
     enum CameraMode
@@ -617,6 +653,8 @@ public:
     virtual status_t initialize(int sensor_index=0) = 0;
 
     virtual status_t setErrorHandler(ErrorNotifier *errorNotifier) = 0;
+
+    virtual status_t setCafHandler(CafNotifier *cafNotifier) = 0;
 
     //Message/Frame notification APIs
     virtual void enableMsgType(int32_t msgs, frame_callback callback=NULL, event_callback eventCb=NULL, void* cookie=NULL) = 0;
@@ -669,6 +707,12 @@ public:
     //by camera service when VSTAB/VNF is turned ON for example
     virtual void getFrameSize(int &width, int &height) = 0;
 
+    //Get Camera Calibration status
+    virtual int getCameraCalStatus() = 0;
+
+    //Get Caemra module information
+    virtual bool getCameraModuleQueryString(char *str, unsigned long length) = 0;
+
     //API to get required data frame size
     virtual status_t getFrameDataSize(size_t &dataFrameSize, size_t bufferCount) = 0;
 
@@ -693,7 +737,8 @@ public:
     ///Initializes the display adapter creates any resources required
     virtual status_t initialize() = 0;
 
-    virtual int setOverlay(const sp<ANativeWindowBuffer> &overlay) = 0;
+    // virtual int setOverlay(const sp<ANativeWindowBuffer> &overlay) = 0;
+    virtual int setPreviewWindow(struct preview_stream_ops *window) = 0;
     virtual int setFrameProvider(FrameNotifier *frameProvider) = 0;
     virtual status_t setErrorHandler(ErrorNotifier *errorNotifier) = 0;
     virtual int enableDisplay(struct timeval *refTime = NULL, S3DParameters *s3dParams = NULL) = 0;
@@ -727,7 +772,7 @@ static void endImageCapture(void *userData);
     @note This class has undergone major re-architecturing from OMAP3
 
 */
-class CameraHal : public CameraHardwareInterface {
+class CameraHal : public CameraHalMotBase { // public CameraHardwareInterface {
 
 
 public:
@@ -736,6 +781,12 @@ public:
     static const int NO_BUFFERS_IMAGE_CAPTURE;
     static const uint32_t VFR_SCALE = 1000;
 
+    enum CaptureMode
+    {
+      NO_MODE = 0,
+      IMAGE_MODE = 1,
+      VIDEO_MODE = 2,
+    };
 
     /*--------------------Interface Methods---------------------------------*/
 
@@ -744,6 +795,36 @@ public:
      */
      //@{
 public:
+        // ----- Motorola specific interfaces - begin  -----
+        virtual status_t setMotParameters(CameraParameters &params);
+        virtual void initDefaultMotParameters(CameraParameters &params);
+
+        // Test commands must inform HAL when it's using the test APIs
+        virtual void EnableTestMode( bool enable )
+        {
+            bCameraTestEnabled = enable;
+        }
+
+        virtual bool GetCameraModuleQueryString (char *str, unsigned char length );
+
+        virtual bool PerformCameraTest( CameraTest         test
+                              , CameraTestInputs  *inputs
+                              , CameraTestOutputs *outputs
+                              );
+
+        // Defined as [Module Manufacturer],[Sensor Model],[Sensor Revision], plus optionally [Module ID],[Sensor ID],[Lens ID]
+        // Example: "Semco,Aptina5130,Rev8"
+        virtual bool GetCameraVendorString( char *str, unsigned char length );
+
+        // Returns 0 for invalid attribute
+        virtual unsigned long GetDebugAttrib( DebugAttrib attrib );
+        virtual bool          SetDebugAttrib( DebugAttrib attrib, unsigned long value );
+
+        // Torch control for factory test command
+        virtual bool SetFlashLedTorch( unsigned intensity );
+
+        // ----- Motorola specific interfaces - end  -----
+
         /** Return the IMemoryHeap for the preview image heap */
         virtual sp<IMemoryHeap>         getPreviewHeap() const;
 
@@ -787,8 +868,7 @@ public:
         /**
          * Only used if overlays are used for camera preview.
          */
-        virtual bool         useOverlay(){return true;}
-        virtual status_t     setOverlay(const sp<Overlay> &overlay);
+        int setPreviewWindow(struct preview_stream_ops *window);
 
         /**
          * Stop a previously started preview.
@@ -849,7 +929,7 @@ public:
         virtual status_t    cancelPicture();
 
         /** Set the camera parameters. */
-        virtual status_t    setParameters(const CameraParameters& params);
+        virtual status_t    setParameters(const CameraParameters& newParams);
 
         /** Return the camera parameters. */
         virtual CameraParameters  getParameters() const;
@@ -908,10 +988,16 @@ public:
 
       //Events
      static void eventCallbackRelay(CameraHalEvent* event);
+     static void frameCallbackRelay(CameraFrame* caFrame);
      void eventCallback(CameraHalEvent* event);
+     void prvFrmNotify (CameraFrame *cameraFrame);
      void setEventProvider(int32_t eventMask, MessageNotifier * eventProvider);
-
+     void setFrameProvider(FrameNotifier *frameNotifier);
      //@}
+
+public:
+            /** Initialize CameraHal */
+            status_t initialize();
 
 /*--------------------Internal Member functions - Private---------------------------------*/
 private:
@@ -919,11 +1005,19 @@ private:
         /** @name internalFunctionsPrivate */
         //@{
 
-            /** Initialize CameraHal */
-            status_t initialize();
-
+            Semaphore prvActiveSemaphore;
+            bool isPreviewActive;
             /** Deinitialize CameraHal */
             void deinitialize();
+
+            /**  Set the camera parameters specific to Video Recording. */
+            bool        setVideoModeParameters(const CameraParameters&);
+
+            /** Reset the camera parameters specific to Video Recording. */
+            bool       resetVideoModeParameters();
+
+            /** Restart the preview with setParameter. */
+            status_t        restartPreview();
 
             //Reloads the CameraAdapter
             status_t reloadAdapter();
@@ -976,9 +1070,26 @@ private:
 
         void setShutter(bool enable);
 
+        status_t ImageCaptureConfig();
+
+        // I2C read write utility to support factory test commands
+        bool i2cRW(int read_size, int write_size, unsigned char *read_data, unsigned char *write_data);
+
+
         //@}
 
+        // Function that sets a key index to either NULL or to value if value != ""
+        // This is needed because for all values "", java expects to pass null to apps
+        void setP(CameraParameters &p, const char* name, const char* value);
 
+         // Set camera Secure Device Management status
+        virtual bool setSdmStatus();
+
+        // get best flash intensity level for the current battery level
+        unsigned int getFlashIntensity(void);
+
+        void doCpuBoost(bool doBoost);
+        void doDropCaches(void);
 
 
 /*----------Member variables - Public ---------------------*/
@@ -995,6 +1106,7 @@ public:
     //User shutter override
     bool mShutterEnabled;
     bool mMeasurementEnabled;
+    bool mHDRCaptureEnabled;
     //Google's parameter delimiter
     static const char PARAMS_DELIMITER[];
 
@@ -1021,6 +1133,9 @@ public:
 
 #endif
 
+    bool mAfterCapture;
+    bool mIsCafEnabled;
+
 /*----------Member variables - Private ---------------------*/
 private:
     //keeps paused state of display
@@ -1035,12 +1150,12 @@ private:
     void* mCameraAdapterHandle;
 
     CameraParameters mParameters;
-    sp<Overlay>  mOverlay;
+    //sp<Overlay>  mOverlay;
     bool mPreviewRunning;
     bool mPreviewStateOld;
     bool mRecordingEnabled;
     EventProvider *mEventProvider;
-
+    FrameProvider *mFrameProvider;
     int32_t *mPreviewDataBufs;
     uint32_t *mPreviewDataOffsets;
     int mPreviewDataFd;
@@ -1078,6 +1193,13 @@ private:
     uint32_t mPreviewWidth;
     uint32_t mPreviewHeight;
     int32_t mMaxZoomSupported;
+
+    int mCameraCalStatus;
+
+    int mBurst;
+    int mBufferCount;
+    CaptureMode mCapMode;
+
 };
 
 

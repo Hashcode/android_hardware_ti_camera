@@ -14,7 +14,7 @@
 
 #include <cutils/properties.h>
 #include <linux/i2c.h>
-//#include <linux/i2c-dev.h>
+// #include <linux/i2c-dev.h>
 
 
 #define WATCHDOG_SECONDS 15
@@ -955,6 +955,5 @@ void CameraHalMotBase::AutoWatchDog::stopWatchDog()
     mWatchDog->requestExitAndWait();
     mWatchDog.clear();
 }
-
 } // namespace android
 
