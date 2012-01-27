@@ -1,22 +1,19 @@
 /*
  * Copyright (C) Texas Instruments - http://www.ti.com/
  *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
+
 
 
 
@@ -38,19 +35,11 @@ public:
 static const  char KEY_SUPPORTED_CAMERAS[];
 // Select logical Camera index
 static const char KEY_CAMERA[];
-static const char KEY_CAMERA_MOTO[];
-static const char KEY_CAMERA_MOTO_VALUES[];
 static const char KEY_CAMERA_NAME[];
 static const  char KEY_S3D_SUPPORTED[];
-static const char  KEY_FACE_DETECTION_ENABLE[];
-static const char  KEY_FACE_DETECTION_DATA[];
-static const char  KEY_FACE_DETECTION_THRESHOLD[];
 static const char  KEY_BURST[];
 static const  char KEY_CAP_MODE[];
-static const  char KEY_VSTAB[];
-static const  char KEY_VSTAB_VALUES[];
 static const  char KEY_VNF[];
-static const  char KEY_VNF_VALUES[];
 static const  char KEY_SATURATION[];
 static const  char KEY_BRIGHTNESS[];
 static const  char KEY_EXPOSURE_MODE[];
@@ -70,7 +59,6 @@ static const char  KEY_TEMP_BRACKETING[];
 static const char  KEY_TEMP_BRACKETING_RANGE_POS[];
 static const char  KEY_TEMP_BRACKETING_RANGE_NEG[];
 static const char  KEY_SHUTTER_ENABLE[];
-static const char  KEY_TOUCH_POS[];
 static const char  KEY_MEASUREMENT_ENABLE[];
 static const char  KEY_INITIAL_VALUES[];
 static const char  KEY_GBCE[];
@@ -78,15 +66,13 @@ static const char  KEY_GLBCE[];
 static const char  KEY_MINFRAMERATE[];
 static const char  KEY_MAXFRAMERATE[];
 
+// TI recording hint to notify camera adapters of possible recording
+static const char  KEY_RECORDING_HINT[];
+static const char  KEY_AUTO_FOCUS_LOCK[];
 static const char  KEY_CURRENT_ISO[];
 
 static const char KEY_SENSOR_ORIENTATION[];
 static const char KEY_SENSOR_ORIENTATION_VALUES[];
-
-static const char KEY_S3D_FRAME_LAYOUT[];
-static const char KEY_S3D_FRAME_LAYOUT_VALUES[];
-
-static const char KEY_SEI_ENCODING_TYPE[];
 
 //TI extensions for zoom
 static const char ZOOM_SUPPORTED[];
@@ -138,7 +124,6 @@ static const char KEY_EXIF_MODEL[];
 static const char KEY_EXIF_MAKE[];
 
 //TI extensions for additional GPS data
-static const char  KEY_GPS_ALTITUDE_REF[];
 static const char  KEY_GPS_MAPDATUM[];
 static const char  KEY_GPS_VERSION[];
 static const char  KEY_GPS_DATESTAMP[];
@@ -160,8 +145,8 @@ static const char IPP_NONE[];
 //TI extensions to camera mode
 static const char HIGH_PERFORMANCE_MODE[];
 static const char HIGH_QUALITY_MODE[];
+static const char HIGH_QUALITY_ZSL_MODE[];
 static const char VIDEO_MODE[];
-static const char HIGH_QUALITY_NONZSL_MODE[];
 
 
 // TI extensions to standard android pixel formats
@@ -183,10 +168,6 @@ static const  char SCENE_MODE_BARCODE[];
 static const  char SCENE_MODE_VIDEO_SUPER_NIGHT[];
 static const  char SCENE_MODE_VIDEO_CINE[];
 static const  char SCENE_MODE_VIDEO_OLD_FILM[];
-
-// TI extensions for face detecition
-static const  char FACE_DETECTION_ENABLE[];
-static const  char FACE_DETECTION_DISABLE[];
 
 // TI extensions to standard android white balance settings.
 static const  char WHITE_BALANCE_TUNGSTEN[];
@@ -210,8 +191,6 @@ static const  char EXPOSURE_MODE_FACE[];
 // TI extensions to standard android focus presets.
 static const  char FOCUS_MODE_PORTRAIT[];
 static const  char FOCUS_MODE_EXTENDED[];
-static const  char FOCUS_MODE_CAF[];
-static const  char FOCUS_MODE_TOUCH[];
 static const char  FOCUS_MODE_FACE[];
 
 // TI extensions to add iso values
@@ -233,17 +212,6 @@ static const char EFFECT_BLACKWHITE[];
 static const char KEY_S3D2D_PREVIEW[];
 static const char KEY_S3D2D_PREVIEW_MODE[];
 
-//TI extensions for stereo frame layouts
-static const char S3D_TB_FULL[];
-static const char S3D_SS_FULL[];
-static const char S3D_TB_SUBSAMPLED[];
-static const char S3D_SS_SUBSAMPLED[];
-
-//TI extensions for SEI encoding config
-static const char SEI_ENCODING_NONE[];
-static const char SEI_ENCODING_2004[];
-static const char SEI_ENCODING_2010[];
-
 //  TI extensions to add values for AutoConvergence settings.
 static const char AUTOCONVERGENCE_MODE_DISABLE[];
 static const char AUTOCONVERGENCE_MODE_FRAME[];
@@ -251,58 +219,6 @@ static const char AUTOCONVERGENCE_MODE_CENTER[];
 static const char AUTOCONVERGENCE_MODE_FFT[];
 static const char AUTOCONVERGENCE_MODE_MANUAL[];
 
-// Motorola specific - begin
-
-// TI extensions to add Motorola test command inerface (TCMD)
-
-static const char KEY_TESTPATTERN1_COLORBARS[];
-
-static const char KEY_TESTPATTERN1_ENMANUALEXPOSURE[];
-static const char KEY_DEBUGATTRIB_EXPOSURETIME[];
-static const char KEY_DEBUGATTRIB_EXPOSUREGAIN[];
-
-static const char KEY_TESTPATTERN1_TARGETEDEXPOSURE[];
-static const char KEY_DEBUGATTRIB_TARGETEXPVALUE[];
-
-static const char KEY_DEBUGATTRIB_CALIBRATIONSTATUS[];
-
-static const char KEY_DEBUGATTRIB_ENLENSPOSGETSET[];
-static const char KEY_DEBUGATTRIB_LENSPOSITION[];
-static const char KEY_DEBUGATTRIB_AFSHARPNESSSCORE[];
-
-static const char KEY_DEBUGATTRIB_MIPIFRAMECOUNT[];
-static const char KEY_DEBUGATTRIB_MIPIECCERRORS[];
-static const char KEY_DEBUGATTRIB_MIPICRCERRORS[];
-static const char KEY_DEBUGATTRIB_MIPIRESET[];
-
-// enable/disable values
-static const char TESTPATTERN1_ENABLE[];
-static const char TESTPATTERN1_DISABLE[];
-
-static const char KEY_MOT_LEDFLASH[];
-static const char KEY_MOT_LEDTORCH[];
-
-static const char KEY_MANUAL_EXPOSURE_TIME_MS[];
-
-// Current mot-hdr mode.
-// Example value: "on" or MOT_HDR_MODE_XXX constants. Read/write.
-static const char KEY_MOT_HDR_MODE[];
-// Supported mot-hdr modes.
-// Example value: "on,off". Read only.
-static const char KEY_SUPPORTED_MOT_HDR_MODES[];
-
-// Values for mot-hdr mode settings.
-// Mot HDR will be off.
-static const char MOT_HDR_MODE_OFF[];
-// Mot HDR will be on
-static const char MOT_HDR_MODE_ON[];
-
-// Red, Green, Blue Tint Effects
-static const char EFFECT_RED_TINT[];
-static const char EFFECT_GREEN_TINT[];
-static const char EFFECT_BLUE_TINT[];
-
-// Motorola specific - end
 
 //TI extensions for flash mode settings
 static const char FLASH_MODE_FILL_IN[];
@@ -313,6 +229,7 @@ static const char ORIENTATION_SENSOR_90[];
 static const char ORIENTATION_SENSOR_180[];
 static const char ORIENTATION_SENSOR_270[];
 
+
 //TI values for camera direction
 static const char FACING_FRONT[];
 static const char FACING_BACK[];
@@ -322,3 +239,4 @@ static const char FACING_BACK[];
 };
 
 #endif
+

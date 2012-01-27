@@ -25,9 +25,9 @@
 
 #include <utils/threads.h>
 
-#include <CameraHal.h>
-#include <CameraProperties.h>
-#include <TICameraParameters.h>
+#include "CameraHal.h"
+#include "CameraProperties.h"
+#include "TICameraParameters.h"
 
 
 static android::CameraProperties gCameraProperties;
@@ -106,9 +106,7 @@ void camera_set_callbacks(struct camera_device * device,
 
     ti_dev = (ti_camera_device_t*) device;
 
-    /* FIXME-HASH: removed "get_memory" */
-    // gCameraHals[ti_dev->cameraid]->setCallbacks(notify_cb, data_cb, data_cb_timestamp, get_memory, user);
-    gCameraHals[ti_dev->cameraid]->setCallbacks(notify_cb, data_cb, data_cb_timestamp, user);
+    gCameraHals[ti_dev->cameraid]->setCallbacks(notify_cb, data_cb, data_cb_timestamp, get_memory, user);
 }
 
 void camera_enable_msg_type(struct camera_device * device, int32_t msg_type)

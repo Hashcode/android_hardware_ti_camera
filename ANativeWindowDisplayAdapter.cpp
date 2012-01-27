@@ -20,10 +20,10 @@
 #define LOG_TAG "CameraHAL"
 
 #include "ANativeWindowDisplayAdapter.h"
-#include "hal_public.h"
-#include "OMX_IVCommon.h"
-#include "ui/GraphicBuffer.h"
-#include "ui/GraphicBufferMapper.h"
+#include <OMX_IVCommon.h>
+#include <ui/GraphicBuffer.h>
+#include <ui/GraphicBufferMapper.h>
+#include <hal_public.h>
 
 namespace android {
 
@@ -189,7 +189,7 @@ ANativeWindowDisplayAdapter::ANativeWindowDisplayAdapter():mDisplayThread(NULL),
 ANativeWindowDisplayAdapter::~ANativeWindowDisplayAdapter()
 {
     Semaphore sem;
-    Message msg;
+    TIUTILS::Message msg;
 
     LOG_FUNCTION_NAME;
 
@@ -353,7 +353,7 @@ status_t ANativeWindowDisplayAdapter::setSnapshotTimeRef(struct timeval *refTime
 int ANativeWindowDisplayAdapter::enableDisplay(int width, int height, struct timeval *refTime, S3DParameters *s3dParams)
 {
     Semaphore sem;
-    Message msg;
+    TIUTILS::Message msg;
 
     LOG_FUNCTION_NAME;
 
@@ -425,8 +425,7 @@ int ANativeWindowDisplayAdapter::disableDisplay(bool cancel_buffer)
 
     // Unregister with the frame provider here
     mFrameProvider->disableFrameNotification(CameraFrame::PREVIEW_FRAME_SYNC);
-    /* FIXME-HASH: "removeFramePointers()" not in FrameProviders */
-    // mFrameProvider->removeFramePointers();
+    mFrameProvider->removeFramePointers();
 
     if ( NULL != mDisplayThread.get() )
         {
@@ -434,7 +433,7 @@ int ANativeWindowDisplayAdapter::disableDisplay(bool cancel_buffer)
         // and then wait for message
         Semaphore sem;
         sem.Create();
-        Message msg;
+        TIUTILS::Message msg;
         msg.command = DisplayThread::DISPLAY_STOP;
 
         // Send the semaphore to signal once the command is completed
@@ -637,8 +636,7 @@ void* ANativeWindowDisplayAdapter::allocateBuffer(int width, int height, const c
         mANativeWindow->lock_buffer(mANativeWindow, mBufferHandleMap[i]);
 
         mapper.lock((buffer_handle_t) mGrallocHandleMap[i], CAMHAL_GRALLOC_USAGE, bounds, y_uv);
-        /* FIXME-HASH: "addFramePointers" doesn't exist in FrameProviders */
-        //mFrameProvider->addFramePointers(mGrallocHandleMap[i] , y_uv);
+        mFrameProvider->addFramePointers(mGrallocHandleMap[i] , y_uv);
     }
 
     // return the rest of the buffers back to ANativeWindow
@@ -659,8 +657,7 @@ void* ANativeWindowDisplayAdapter::allocateBuffer(int width, int height, const c
         //LOCK UNLOCK TO GET YUV POINTERS
         void *y_uv[2];
         mapper.lock((buffer_handle_t) mGrallocHandleMap[i], CAMHAL_GRALLOC_USAGE, bounds, y_uv);
-        /* FIXME-HASH: "addFramePointers" doesn't exist in FrameProviders */
-        //mFrameProvider->addFramePointers(mGrallocHandleMap[i] , y_uv);
+        mFrameProvider->addFramePointers(mGrallocHandleMap[i] , y_uv);
         mapper.unlock((buffer_handle_t) mGrallocHandleMap[i]);
     }
 
@@ -906,7 +903,7 @@ void ANativeWindowDisplayAdapter::displayThread()
 
     while(shouldLive)
         {
-        ret = MessageQueue::waitForMsg(&mDisplayThread->msgQ()
+        ret = TIUTILS::MessageQueue::waitForMsg(&mDisplayThread->msgQ()
                                                                 ,  &mDisplayQ
                                                                 , NULL
                                                                 , ANativeWindowDisplayAdapter::DISPLAY_TIMEOUT);
@@ -928,7 +925,7 @@ void ANativeWindowDisplayAdapter::displayThread()
                 }
             else
                 {
-                Message msg;
+                TIUTILS::Message msg;
                 ///Get the dummy msg from the displayQ
                 if(mDisplayQ.get(&msg)!=NO_ERROR)
                     {
@@ -959,7 +956,7 @@ void ANativeWindowDisplayAdapter::displayThread()
 
 bool ANativeWindowDisplayAdapter::processHalMsg()
 {
-    Message msg;
+    TIUTILS::Message msg;
 
     LOG_FUNCTION_NAME;
 
@@ -1106,7 +1103,7 @@ status_t ANativeWindowDisplayAdapter::PostFrame(ANativeWindowDisplayAdapter::Dis
 
         // HWComposer has not minimum buffer requirement. We should be able to dequeue
         // the buffer immediately
-        Message msg;
+        TIUTILS::Message msg;
         mDisplayQ.put(&msg);
 
 
@@ -1145,7 +1142,7 @@ status_t ANativeWindowDisplayAdapter::PostFrame(ANativeWindowDisplayAdapter::Dis
 
         mFramesWithCameraAdapterMap.removeItem((int) dispFrame.mBuffer);
 
-        Message msg;
+        TIUTILS::Message msg;
         mDisplayQ.put(&msg);
         ret = NO_ERROR;
     }

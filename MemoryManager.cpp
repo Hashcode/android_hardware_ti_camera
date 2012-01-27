@@ -1,25 +1,22 @@
 /*
  * Copyright (C) Texas Instruments - http://www.ti.com/
  *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 
-#define LOG_TAG "CameraHal"
+
+#define LOG_TAG "CameraHAL"
 
 
 #include "CameraHal.h"
@@ -51,7 +48,7 @@ namespace android {
 ///@todo Change the name of the MemoryManager class to TilerMemoryManager to indicate that it allocates TILER buffers only
 void* MemoryManager::allocateBuffer(int width, int height, const char* format, int &bytes, int numBufs)
 {
-    LOG_FUNCTION_NAME
+    LOG_FUNCTION_NAME;
     ///We allocate numBufs+1 because the last entry will be marked NULL to indicate end of array, which is used when freeing
     ///the buffers
     const uint numArrayEntriesC = (uint)(numBufs+1);
@@ -64,7 +61,7 @@ void* MemoryManager::allocateBuffer(int width, int height, const char* format, i
     if(!bufsArr)
         {
         CAMHAL_LOGEB("Allocation failed when creating buffers array of %d uint32_t elements", numArrayEntriesC);
-        LOG_FUNCTION_NAME_EXIT
+        LOG_FUNCTION_NAME_EXIT;
         return NULL;
         }
 
@@ -193,7 +190,7 @@ void* MemoryManager::allocateBuffer(int width, int height, const char* format, i
 
         }
 
-        LOG_FUNCTION_NAME_EXIT
+        LOG_FUNCTION_NAME_EXIT;
 
 
         ///Free the request structure before returning from the function
@@ -211,26 +208,26 @@ void* MemoryManager::allocateBuffer(int width, int height, const char* format, i
             mErrorNotifier->errorNotify(-ENOMEM);
             }
 
-        LOG_FUNCTION_NAME_EXIT
-        return NULL;
+    LOG_FUNCTION_NAME_EXIT;
+    return NULL;
 }
 
 //TODO: Get needed data to map tiler buffers
 //Return dummy data for now
 uint32_t * MemoryManager::getOffsets()
 {
-    LOG_FUNCTION_NAME
+    LOG_FUNCTION_NAME;
 
-    LOG_FUNCTION_NAME_EXIT
+    LOG_FUNCTION_NAME_EXIT;
 
     return NULL;
 }
 
 int MemoryManager::getFd()
 {
-    LOG_FUNCTION_NAME
+    LOG_FUNCTION_NAME;
 
-    LOG_FUNCTION_NAME_EXIT
+    LOG_FUNCTION_NAME_EXIT;
 
     return -1;
 }
@@ -238,14 +235,14 @@ int MemoryManager::getFd()
 int MemoryManager::freeBuffer(void* buf)
 {
     status_t ret = NO_ERROR;
-    LOG_FUNCTION_NAME
+    LOG_FUNCTION_NAME;
 
     uint32_t *bufEntry = (uint32_t*)buf;
 
     if(!bufEntry)
         {
         CAMHAL_LOGEA("NULL pointer passed to freebuffer");
-        LOG_FUNCTION_NAME_EXIT
+        LOG_FUNCTION_NAME_EXIT;
         return BAD_VALUE;
         }
 
@@ -258,7 +255,7 @@ int MemoryManager::freeBuffer(void* buf)
     uint32_t * bufArr = (uint32_t*)buf;
     delete [] bufArr;
 
-    LOG_FUNCTION_NAME_EXIT
+    LOG_FUNCTION_NAME_EXIT;
     return ret;
 }
 
@@ -266,7 +263,7 @@ status_t MemoryManager::setErrorHandler(ErrorNotifier *errorNotifier)
 {
     status_t ret = NO_ERROR;
 
-    LOG_FUNCTION_NAME
+    LOG_FUNCTION_NAME;
 
     if ( NULL == errorNotifier )
         {
@@ -279,7 +276,7 @@ status_t MemoryManager::setErrorHandler(ErrorNotifier *errorNotifier)
         mErrorNotifier = errorNotifier;
         }
 
-    LOG_FUNCTION_NAME_EXIT
+    LOG_FUNCTION_NAME_EXIT;
 
     return ret;
 }

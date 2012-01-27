@@ -109,14 +109,14 @@ public:
     class DisplayThread : public Thread
         {
         ANativeWindowDisplayAdapter* mDisplayAdapter;
-        MessageQueue mDisplayThreadQ;
+        TIUTILS::MessageQueue mDisplayThreadQ;
 
         public:
             DisplayThread(ANativeWindowDisplayAdapter* da)
             : Thread(false), mDisplayAdapter(da) { }
 
         ///Returns a reference to the display message Q for display adapter to post messages
-            MessageQueue& msgQ()
+            TIUTILS::MessageQueue& msgQ()
                 {
                 return mDisplayThreadQ;
                 }
@@ -150,7 +150,7 @@ private:
     preview_stream_ops_t*  mANativeWindow;
     sp<DisplayThread> mDisplayThread;
     FrameProvider *mFrameProvider; ///Pointer to the frame provider interface
-    MessageQueue mDisplayQ;
+    TIUTILS::MessageQueue mDisplayQ;
     unsigned int mDisplayState;
     ///@todo Have a common class for these members
     mutable Mutex mLock;
