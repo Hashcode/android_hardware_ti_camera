@@ -2908,7 +2908,7 @@ status_t CameraHal::initialize(CameraProperties::Properties* properties)
 
     // Dump the properties of this Camera
     // will only print if DEBUG macro is defined
-    mCameraProperties->dump();
+    mCameraProperties->dump(sensor_index);
 
     if (strcmp(CameraProperties::DEFAULT_VALUE, mCameraProperties->get(CameraProperties::CAMERA_SENSOR_INDEX)) != 0 )
         {

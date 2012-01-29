@@ -21,14 +21,12 @@
 *
 */
 
-//#include "CameraHal.h"
+#include "CameraHal.h"
 #include <utils/threads.h>
 
 #include "DebugUtils.h"
 #include "CameraProperties.h"
 
-#define CAMERA_ROOT         "CameraRoot"
-#define CAMERA_INSTANCE     "CameraInstance"
 
 namespace android {
 
@@ -69,14 +67,20 @@ status_t CameraProperties::initialize()
 {
     LOG_FUNCTION_NAME;
 
-    status_t ret;
+    status_t ret = NO_ERROR;
 
     Mutex::Autolock lock(mLock);
 
     if(mInitialized)
         return NO_ERROR;
 
-    ret = loadProperties();
+    /* FIXME-HASH: Check this */
+    loadProperties();
+    loadXMLProperties();
+
+    for (unsigned int i = 0; i < mCamerasSupported; i++) {
+        mCameraProps[i].dump(i);
+    }
 
     mInitialized = 1;
 
@@ -110,7 +114,7 @@ status_t CameraProperties::loadProperties()
 
         for (unsigned int i = 0; i < mCamerasSupported; i++) {
             mCameraProps[i].set(CAMERA_SENSOR_INDEX, i);
-            mCameraProps[i].dump();
+            //mCameraProps[i].dump(i);
         }
     }
 

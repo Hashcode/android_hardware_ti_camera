@@ -1248,11 +1248,14 @@ status_t OMXCameraAdapter::getCaps(CameraProperties::Properties* params, OMX_HAN
     sharedBuffer.pSharedBuff = (OMX_U8 *) caps[0];
 
     // Get capabilities from OMX Camera
+    CAMHAL_LOGEB("Calling OMX_GetConfig() for OMX_TI_IndexConfigCamCapabilities %d", 0);
+    /* FIXME-HASH: Fix this */
     eError =  OMX_GetConfig(handle, (OMX_INDEXTYPE) OMX_TI_IndexConfigCamCapabilities, &sharedBuffer);
     if ( OMX_ErrorNone != eError ) {
         CAMHAL_LOGEB("Error during capabilities query 0x%x", eError);
-        ret = UNKNOWN_ERROR;
-        goto EXIT;
+        /* FIXME-HASH: Removed the query as it will fail for GB syslink */
+        // ret = UNKNOWN_ERROR;
+        // goto EXIT;
     } else {
         CAMHAL_LOGDA("OMX capability query success");
     }

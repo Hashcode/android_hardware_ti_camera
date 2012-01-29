@@ -140,6 +140,9 @@ public:
     static const char SUPPORTED_VIDEO_SIZES[];
     static const char PREFERRED_PREVIEW_SIZE_FOR_VIDEO[];
 
+    static const char TICAMERA_FILE_PREFIX[];
+    static const char TICAMERA_FILE_EXTN[];
+
     CameraProperties();
     ~CameraProperties();
 
@@ -165,7 +168,7 @@ public:
             ssize_t set(const char *prop, const char *value);
             ssize_t set(const char *prop, int value);
             const char* get(const char * prop);
-            void dump();
+            void dump(int i);
 
         protected:
             const char* keyAt(unsigned int);
@@ -182,13 +185,21 @@ public:
     int camerasSupported();
     int getProperties(int cameraIndex, Properties** properties);
 
-private:
+    /* FIXME-HASH: Added for XML Settings file support */
+    status_t loadXMLProperties();
+    status_t storeXMLProperties();
 
+private:
     uint32_t mCamerasSupported;
     int mInitialized;
     mutable Mutex mLock;
 
     Properties mCameraProps[MAX_CAMERAS_SUPPORTED];
+
+    /* FIXME-HASH: Added for XML Settings file support */
+    status_t parseAndLoadProps(const char* file);
+    // Choosing 268 because "system/etc/"+ dir_name(0...255) can be max 268 chars
+    char mXMLFullPath[268];
 
 };
 

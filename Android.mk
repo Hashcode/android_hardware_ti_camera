@@ -18,6 +18,7 @@ OMAP4_CAMERA_HAL_SRC := \
 
 OMAP4_CAMERA_COMMON_SRC:= \
 	CameraParameters.cpp \
+	CameraParser.cpp \
 	TICameraParameters.cpp \
 	CameraHalCommon.cpp
 
@@ -63,7 +64,9 @@ LOCAL_C_INCLUDES += \
     $(TOP)/frameworks/base/include/media/stagefright \
     $(TOP)/frameworks/base/include/media/stagefright/openmax \
     $(TOP)/external/jpeg \
-    $(TOP)/external/jhead
+    $(TOP)/external/jhead \
+    $(TOP)/external/libxml2/include \
+    $(TOP)/external/icu4c/common \
 
 #    libmm_osal \
 #    libdomx \
@@ -81,7 +84,11 @@ LOCAL_SHARED_LIBRARIES:= \
     libcamera_client \
     libgui \
     libjpeg \
-    libexif
+    libexif \
+    libicuuc \
+
+LOCAL_STATIC_LIBRARIES:= \
+    libxml2
 
 LOCAL_CFLAGS := -fno-short-enums -DCOPY_IMAGE_BUFFER
 

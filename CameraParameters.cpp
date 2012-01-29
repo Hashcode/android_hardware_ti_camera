@@ -116,7 +116,7 @@ const char CameraProperties::PREFERRED_PREVIEW_SIZE_FOR_VIDEO[] = "preferred-pre
 
 const char CameraProperties::DEFAULT_VALUE[] = "";
 
-const char CameraProperties::PARAMS_DELIMITER []= ",";
+const char CameraProperties::PARAMS_DELIMITER[]= ",";
 
 // Returns the properties class for a specific Camera
 // Each value is indexed by the CameraProperties::CameraPropertyIndex enum
@@ -161,11 +161,11 @@ const char* CameraProperties::Properties::get(const char * prop)
     return value.string();
 }
 
-void CameraProperties::Properties::dump()
+void CameraProperties::Properties::dump(int index)
 {
     for (size_t i = 0; i < mProperties->size(); i++)
     {
-        CAMHAL_LOGDB("%s = %s\n",
+        CAMHAL_LOGDB("[%d] %s = %s\n", index,
                         mProperties->keyAt(i).string(),
                         mProperties->valueAt(i).string());
     }
