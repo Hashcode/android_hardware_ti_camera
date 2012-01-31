@@ -38,7 +38,6 @@ static const int VerticalFaceSizeThreshold = 30;
 
 
 namespace android {
-
 status_t OMXCameraAdapter::setParametersFD(const CameraParameters &params,
                                            BaseCameraAdapter::AdapterState state)
 {
@@ -54,6 +53,8 @@ status_t OMXCameraAdapter::setParametersFD(const CameraParameters &params,
 status_t OMXCameraAdapter::startFaceDetection()
 {
     status_t ret = NO_ERROR;
+/* FIXME-HASH: Removed temporarily */
+#if 0
 
     Mutex::Autolock lock(mFaceDetectionLock);
 
@@ -79,12 +80,15 @@ status_t OMXCameraAdapter::startFaceDetection()
 
     faceDetectionNumFacesLastOutput = 0;
  out:
+#endif
     return ret;
 }
 
 status_t OMXCameraAdapter::stopFaceDetection()
 {
     status_t ret = NO_ERROR;
+/* FIXME-HASH: Removed temporarily */
+#if 0
     const char *str = NULL;
     BaseCameraAdapter::AdapterState state;
     BaseCameraAdapter::getState(state);
@@ -108,22 +112,28 @@ status_t OMXCameraAdapter::stopFaceDetection()
 
     faceDetectionNumFacesLastOutput = 0;
  out:
+#endif
     return ret;
 }
 
 void OMXCameraAdapter::pauseFaceDetection(bool pause)
 {
+/* FIXME-HASH: Removed temporarily */
+#if 0
     Mutex::Autolock lock(mFaceDetectionLock);
     // pausing will only take affect if fd is already running
     if (mFaceDetectionRunning) {
         mFaceDetectionPaused = pause;
         faceDetectionNumFacesLastOutput = 0;
     }
+#endif
 }
 
 status_t OMXCameraAdapter::setFaceDetection(bool enable, OMX_U32 orientation)
 {
     status_t ret = NO_ERROR;
+/* FIXME-HASH: Removed temporarily */
+#if 0
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_CONFIG_EXTRADATATYPE extraDataControl;
     OMX_CONFIG_OBJDETECTIONTYPE objDetection;
@@ -205,7 +215,7 @@ status_t OMXCameraAdapter::setFaceDetection(bool enable, OMX_U32 orientation)
         }
 
     LOG_FUNCTION_NAME_EXIT;
-
+#endif
     return ret;
 }
 
@@ -215,6 +225,8 @@ status_t OMXCameraAdapter::detectFaces(OMX_BUFFERHEADERTYPE* pBuffHeader,
                                        size_t previewHeight)
 {
     status_t ret = NO_ERROR;
+/* FIXME-HASH: Removed temporarily */
+#if 0
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_TI_FACERESULT *faceResult;
     OMX_OTHER_EXTRADATATYPE *extraData;
@@ -309,7 +321,7 @@ status_t OMXCameraAdapter::detectFaces(OMX_BUFFERHEADERTYPE* pBuffHeader,
     }
 
     LOG_FUNCTION_NAME_EXIT;
-
+#endif
     return ret;
 }
 
@@ -319,6 +331,8 @@ status_t OMXCameraAdapter::encodeFaceCoordinates(const OMX_FACEDETECTIONTYPE *fa
                                                  size_t previewHeight)
 {
     status_t ret = NO_ERROR;
+/* FIXME-HASH: Removed temporarily */
+#if 0
     camera_face_t *faces;
     camera_frame_metadata_t *faceResult;
     size_t hRange, vRange;
@@ -507,7 +521,7 @@ status_t OMXCameraAdapter::encodeFaceCoordinates(const OMX_FACEDETECTIONTYPE *fa
     *pFaces = faceResult;
 
     LOG_FUNCTION_NAME_EXIT;
-
+#endif
     return ret;
 }
 

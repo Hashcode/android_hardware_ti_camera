@@ -160,10 +160,13 @@ status_t OMXCameraAdapter::doAutoFocus()
         OMX_INIT_STRUCT_PTR (&bOMX, OMX_CONFIG_BOOLEANTYPE);
         bOMX.bEnabled = OMX_TRUE;
 
+/* FIXME-HASH: Removed for now */
+#if 0
         //Enable focus scanning
         eError = OMX_SetConfig(mCameraAdapterParameters.mHandleComp,
                                (OMX_INDEXTYPE)OMX_TI_IndexConfigAutofocusEnable,
                                &bOMX);
+#endif
 
         ret = RegisterForEvent(mCameraAdapterParameters.mHandleComp,
                                     (OMX_EVENTTYPE) OMX_EventIndexSettingChanged,
@@ -697,6 +700,8 @@ status_t OMXCameraAdapter::setTouchFocus()
     status_t ret = NO_ERROR;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
 
+    /* FIXME-HASH: Removed for now */
+#if 0
     OMX_ALGOAREASTYPE **focusAreas;
     OMX_TI_CONFIG_SHAREDBUFFER sharedBuffer;
     MemoryManager memMgr;
@@ -794,7 +799,7 @@ status_t OMXCameraAdapter::setTouchFocus()
             focusAreas = NULL;
             }
         }
-
+#endif
     LOG_FUNCTION_NAME_EXIT;
 
     return ret;

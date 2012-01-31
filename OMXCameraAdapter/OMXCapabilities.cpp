@@ -979,6 +979,8 @@ status_t OMXCameraAdapter::insertAreas(CameraProperties::Properties* params, OMX
     const char *p;
 
     LOG_FUNCTION_NAME;
+/* FIXME-HASH: Removed, no GB support */
+#if 0
 
     memset(supported, '\0', MAX_PROP_VALUE_LENGTH);
 
@@ -991,8 +993,8 @@ status_t OMXCameraAdapter::insertAreas(CameraProperties::Properties* params, OMX
     params->set(CameraProperties::MAX_NUM_METERING_AREAS, supported);
     CAMHAL_LOGDB("Maximum supported exposure areas %s", supported);
 
+#endif
     LOG_FUNCTION_NAME;
-
     return ret;
 }
 
@@ -1191,6 +1193,7 @@ status_t OMXCameraAdapter::insertCapabilities(CameraProperties::Properties* para
     if ( NO_ERROR == ret ) {
         ret = insertLocks(params, caps);
     }
+
     if ( NO_ERROR == ret) {
         ret = insertAreas(params, caps);
 

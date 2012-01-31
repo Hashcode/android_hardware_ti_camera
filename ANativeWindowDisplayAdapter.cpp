@@ -568,7 +568,7 @@ void* ANativeWindowDisplayAdapter::allocateBuffer(int width, int height, const c
             mANativeWindow,
             width,
             height,
-            0); //toOMXPixFormat(format)HAL_PIXEL_FORMAT_TI_NV12); //   // Gralloc only supports NV12 alloc!
+            1); // toOMXPixFormat(format)); // HAL_PIXEL_FORMAT_TI_NV12); // Gralloc only supports NV12 alloc!
 
     if (err != 0) {
         LOGE("native_window_set_buffers_geometry failed: %s (%d)", strerror(-err), -err);

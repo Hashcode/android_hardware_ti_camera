@@ -562,18 +562,26 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         mMeasurementEnabled = false;
         }
 
+    CAMHAL_LOGDA("START setParametersCapture");
     ret |= setParametersCapture(params, state);
 
+    CAMHAL_LOGDA("START setParameters3A");
     ret |= setParameters3A(params, state);
 
+    CAMHAL_LOGDA("START setParametersAlgo");
     ret |= setParametersAlgo(params, state);
 
-    ret |= setParametersFocus(params, state);
+    CAMHAL_LOGDA("START setParametersFocus");
+    /* FIXME-HASH: Removed for now */
+    // ret |= setParametersFocus(params, state);
 
+    CAMHAL_LOGDA("START setParametersFD");
     ret |= setParametersFD(params, state);
 
+    CAMHAL_LOGDA("START setParametersZoom");
     ret |= setParametersZoom(params, state);
 
+    CAMHAL_LOGDA("START setParametersEXIF");
     ret |= setParametersEXIF(params, state);
 
     mParams = params;
@@ -1626,7 +1634,7 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
                                      NULL);
         }
 
-
+#if 0
     ///Configure DOMX to use either gralloc handles or vptrs
     OMX_TI_PARAMUSENATIVEBUFFER domxUseGrallocHandles;
     OMX_INIT_STRUCT_PTR (&domxUseGrallocHandles, OMX_TI_PARAMUSENATIVEBUFFER);
@@ -1642,6 +1650,7 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         }
     GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
 
+#endif
     OMX_BUFFERHEADERTYPE *pBufferHdr;
     for(int index=0;index<num;index++) {
 
@@ -1761,6 +1770,8 @@ status_t OMXCameraAdapter::startPreview()
     OMX_CONFIG_EXTRADATATYPE extraDataControl;
 
     LOG_FUNCTION_NAME;
+
+    CAMHAL_LOGDA("ENTER startPreview");
 
     if( 0 != mStartPreviewSem.Count() )
         {
@@ -2956,11 +2967,14 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
             {
             Mutex::Autolock lock(mFaceDetectionLock);
             if ( mFaceDetectionRunning && !mFaceDetectionPaused ) {
+/* FIXME-HASH: Removed temp */
+#if 0
                 detectFaces(pBuffHeader, fdResult, pPortParam->mWidth, pPortParam->mHeight);
                 if ( NULL != fdResult.get() ) {
                     notifyFaceSubscribers(fdResult);
                     fdResult.clear();
                 }
+#endif
             }
             }
 

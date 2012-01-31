@@ -604,6 +604,8 @@ status_t OMXCameraAdapter::setFocusMode(Gen3A_settings& Gen3A)
 {
     status_t ret = NO_ERROR;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
+/* FIXME-HASH: Removed for now */
+#if 0
     OMX_IMAGE_CONFIG_FOCUSCONTROLTYPE focus;
     size_t top, left, width, height, weight;
     OMX_CONFIG_BOOLEANTYPE bOMX;
@@ -703,7 +705,7 @@ status_t OMXCameraAdapter::setFocusMode(Gen3A_settings& Gen3A)
             CAMHAL_LOGDA("Camera focus mode configured successfully");
             }
         }
-
+#endif
     LOG_FUNCTION_NAME_EXIT;
 
     return ErrorUtils::omxToAndroidError(eError);
@@ -712,6 +714,7 @@ status_t OMXCameraAdapter::setFocusMode(Gen3A_settings& Gen3A)
 status_t OMXCameraAdapter::getFocusMode(Gen3A_settings& Gen3A)
 {
     status_t ret = NO_ERROR;
+
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_IMAGE_CONFIG_FOCUSCONTROLTYPE focus;
     size_t top, left, width, height, weight;
@@ -725,6 +728,8 @@ status_t OMXCameraAdapter::getFocusMode(Gen3A_settings& Gen3A)
 
     OMX_INIT_STRUCT_PTR (&focus, OMX_IMAGE_CONFIG_FOCUSCONTROLTYPE);
     focus.nPortIndex = mCameraAdapterParameters.mPrevPortIndex;
+/* FIXME-HASH: Removed for now */
+#if 0
     eError = OMX_GetConfig(mCameraAdapterParameters.mHandleComp,
                            OMX_IndexConfigFocusControl, &focus);
 
@@ -734,7 +739,7 @@ status_t OMXCameraAdapter::getFocusMode(Gen3A_settings& Gen3A)
         Gen3A.Focus = focus.eFocusControl;
         CAMHAL_LOGDB("Gen3A.Focus 0x%x", Gen3A.Focus);
     }
-
+#endif
     LOG_FUNCTION_NAME_EXIT;
 
     return ErrorUtils::omxToAndroidError(eError);
@@ -1510,6 +1515,8 @@ status_t OMXCameraAdapter::setMeteringAreas(Gen3A_settings& Gen3A)
   status_t ret = NO_ERROR;
   OMX_ERRORTYPE eError = OMX_ErrorNone;
 
+/* FIXME-HASH: Removed for now */
+#if 0
   OMX_ALGOAREASTYPE **meteringAreas;
   OMX_TI_CONFIG_SHAREDBUFFER sharedBuffer;
   MemoryManager memMgr;
@@ -1603,6 +1610,7 @@ status_t OMXCameraAdapter::setMeteringAreas(Gen3A_settings& Gen3A)
       memMgr.freeBuffer((void*) meteringAreas);
       meteringAreas = NULL;
       }
+#endif
 
   return ret;
 }

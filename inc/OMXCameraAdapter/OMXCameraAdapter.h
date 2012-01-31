@@ -543,9 +543,10 @@ private:
     status_t setTouchFocus();
 
     //Face detection
+    status_t updateFocusDistances(CameraParameters &params);
     status_t setParametersFD(const CameraParameters &params,
                              BaseCameraAdapter::AdapterState state);
-    status_t updateFocusDistances(CameraParameters &params);
+    void pauseFaceDetection(bool pause);
     status_t setFaceDetection(bool enable, OMX_U32 orientation);
     status_t detectFaces(OMX_BUFFERHEADERTYPE* pBuffHeader,
                          sp<CameraFDResult> &result,
@@ -555,7 +556,6 @@ private:
                                    camera_frame_metadata_t **pFaces,
                                    size_t previewWidth,
                                    size_t previewHeight);
-    void pauseFaceDetection(bool pause);
 
     //3A Algorithms priority configuration
     status_t setAlgoPriority(AlgoPriority priority, Algorithm3A algo, bool enable);

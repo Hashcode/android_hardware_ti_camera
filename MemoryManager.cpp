@@ -212,6 +212,7 @@ void* MemoryManager::allocateBuffer(int width, int height, const char* format, i
     return NULL;
 }
 
+
 //TODO: Get needed data to map tiler buffers
 //Return dummy data for now
 uint32_t * MemoryManager::getOffsets()

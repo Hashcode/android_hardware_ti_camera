@@ -1030,6 +1030,7 @@ int CameraHal::setParameters(const CameraParameters& params)
     return ret;
 }
 
+/* FIXME-HASH: ANativeWindow version of allocPreviewBuffs */
 status_t CameraHal::allocPreviewBufs(int width, int height, const char* previewFormat,
                                         unsigned int buffercount, unsigned int &max_queueable)
 {
@@ -1085,6 +1086,42 @@ status_t CameraHal::allocPreviewBufs(int width, int height, const char* previewF
 
 }
 
+/* FIXME-HASH: MemoryManager version of allocPreviewBufs */
+#if 0
+status_t CameraHal::allocPreviewBufs(int width, int height, const char* previewFormat,
+                                        unsigned int buffercount, unsigned int &max_queueable)
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME;
+
+    if(!mPreviewBufs)
+    {
+        ///@todo Pluralise the name of this method to allocateBuffers
+        mPreviewLength = 0;
+        mPreviewBufs = (int32_t *) mMemoryManager->allocateBuffer(width, height,
+                                                                    "",
+                                                                    mPreviewLength,
+                                                                    buffercount);
+	if (NULL == mPreviewBufs ) {
+            CAMHAL_LOGEA("Couldn't allocate preview buffers");
+            return NO_MEMORY;
+        }
+
+        mPreviewOffsets = (uint32_t *) mMemoryManager->getOffsets();
+        mPreviewFd = mMemoryManager->getFd();
+        mBufProvider = (BufferProvider*) mMemoryManager.get();
+        max_queueable = buffercount;
+        ret = NO_ERROR;
+
+    }
+
+    LOG_FUNCTION_NAME_EXIT;
+
+    return ret;
+}
+#endif
+
 status_t CameraHal::freePreviewBufs()
 {
     status_t ret = NO_ERROR;
@@ -1102,7 +1139,6 @@ status_t CameraHal::freePreviewBufs()
     LOG_FUNCTION_NAME_EXIT;
     return ret;
 }
-
 
 status_t CameraHal::allocPreviewDataBufs(size_t size, size_t bufferCount)
 {

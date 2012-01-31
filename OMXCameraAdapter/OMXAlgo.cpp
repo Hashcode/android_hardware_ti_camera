@@ -69,7 +69,9 @@ status_t OMXCameraAdapter::setParametersAlgo(const CameraParameters &params,
         }
     else
         {
-        capMode = OMXCameraAdapter::HIGH_QUALITY_ZSL;
+        /* FIXME-HASH: Removed for now */
+        // capMode = OMXCameraAdapter::HIGH_QUALITY_ZSL;
+        capMode = OMXCameraAdapter::HIGH_QUALITY;
 
         }
 
@@ -276,6 +278,8 @@ status_t OMXCameraAdapter::setParametersAlgo(const CameraParameters &params,
                 }
         CAMHAL_LOGVB("AutoConvergenceMode %s, value = %d", valstr, (int) manualconvergence);
         }
+
+    CAMHAL_LOGDA("END setParametersAlgo");
 
     LOG_FUNCTION_NAME_EXIT;
 
@@ -627,11 +631,13 @@ status_t OMXCameraAdapter::setCaptureMode(OMXCameraAdapter::CaptureMode mode)
             CAMHAL_LOGDA("Camera mode: HIGH SPEED");
             camMode.eCamOperatingMode = OMX_CaptureImageHighSpeedTemporalBracketing;
             }
-        else if( OMXCameraAdapter::HIGH_QUALITY == mode )
+        // else if( OMXCameraAdapter::HIGH_QUALITY == mode )
+        else if( (OMXCameraAdapter::HIGH_QUALITY == mode) || (OMXCameraAdapter::HIGH_QUALITY_ZSL== mode) )
             {
             CAMHAL_LOGDA("Camera mode: HIGH QUALITY");
             camMode.eCamOperatingMode = OMX_CaptureImageProfileBase;
             }
+/* FIXME-HASH: Removed temporarily */
 #if 0
         else if( OMXCameraAdapter::HIGH_QUALITY_ZSL== mode )
             {
