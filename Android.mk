@@ -14,7 +14,9 @@ OMAP4_CAMERA_HAL_SRC := \
 	MemoryManager.cpp \
 	Encoder_libjpeg.cpp \
 	SensorListener.cpp  \
-	NV12_resize.c
+	NV12_resize.c \
+
+	#v4l2_utils.c \
 
 OMAP4_CAMERA_COMMON_SRC:= \
 	CameraParameters.cpp \

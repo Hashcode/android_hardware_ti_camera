@@ -524,6 +524,7 @@ void* ANativeWindowDisplayAdapter::allocateBuffer(int width, int height, const c
     const int lnumBufs = numBufs;
     mBufferHandleMap = new buffer_handle_t*[lnumBufs];
     mGrallocHandleMap = new IMG_native_handle_t*[lnumBufs];
+    int32_t *buffers = new int32_t[lnumBufs];
     int undequeued = 0;
     GraphicBufferMapper &mapper = GraphicBufferMapper::get();
     Rect bounds;
@@ -568,7 +569,7 @@ void* ANativeWindowDisplayAdapter::allocateBuffer(int width, int height, const c
             mANativeWindow,
             width,
             height,
-            1); // toOMXPixFormat(format)); // HAL_PIXEL_FORMAT_TI_NV12); // Gralloc only supports NV12 alloc!
+            4); // 4= HAL_PIXEL_FORMAT_RGB_565 // toOMXPixFormat(format)); // HAL_PIXEL_FORMAT_TI_NV12); // Gralloc only supports NV12 alloc!
 
     if (err != 0) {
         LOGE("native_window_set_buffers_geometry failed: %s (%d)", strerror(-err), -err);
@@ -620,7 +621,7 @@ void* ANativeWindowDisplayAdapter::allocateBuffer(int width, int height, const c
         mFramesWithCameraAdapterMap.add((int) mGrallocHandleMap[i], i);
 
         bytes =  getBufSize(format, width, height);
-
+        CAMHAL_LOGDB("Check 1: %d grallochmap=%d, fd=%d, width=%d, height=%d, size=%d, vptr=%d, offset=%d", i, (int)mGrallocHandleMap[i], (int)mGrallocHandleMap[i]->fd[0], (int)mGrallocHandleMap[i]->iWidth, (int)mGrallocHandleMap[i]->iHeight, (int)mGrallocHandleMap[i]->m_size, (int)mGrallocHandleMap[i]->vptr, (int)mGrallocHandleMap[i]->m_offset);
     }
 
     // lock the initial queueable buffers
@@ -628,6 +629,8 @@ void* ANativeWindowDisplayAdapter::allocateBuffer(int width, int height, const c
     bounds.top = 0;
     bounds.right = width;
     bounds.bottom = height;
+
+    int ret;
 
     for( i = 0;  i < mBufferCount-undequeued; i++ )
     {
@@ -637,6 +640,10 @@ void* ANativeWindowDisplayAdapter::allocateBuffer(int width, int height, const c
 
         mapper.lock((buffer_handle_t) mGrallocHandleMap[i], CAMHAL_GRALLOC_USAGE, bounds, y_uv);
         mFrameProvider->addFramePointers(mGrallocHandleMap[i] , y_uv);
+        CAMHAL_LOGDB("Check 2: %d yuv[0]=%d, yuv[1]=%d", i, (int)y_uv[0], (int)y_uv[1]);
+        buffers[i] = (int)y_uv[0];
+
+        //ret = v4l2_overlay_map_buf(mGrallocHandleMap[i].fd, i, &buffers[i], );
     }
 
     // return the rest of the buffers back to ANativeWindow
@@ -658,15 +665,20 @@ void* ANativeWindowDisplayAdapter::allocateBuffer(int width, int height, const c
         void *y_uv[2];
         mapper.lock((buffer_handle_t) mGrallocHandleMap[i], CAMHAL_GRALLOC_USAGE, bounds, y_uv);
         mFrameProvider->addFramePointers(mGrallocHandleMap[i] , y_uv);
+        CAMHAL_LOGDB("Check 3: %d yuv[0]=%d, uv[1]=%d", i, (int)y_uv[0], (int)y_uv[1]);
+        buffers[i] = (int)y_uv[0];
         mapper.unlock((buffer_handle_t) mGrallocHandleMap[i]);
     }
+
+    // Register w/ tiler
 
     mFirstInit = true;
     mPixelFormat = getPixFormatConstant(format);
     mFrameWidth = width;
     mFrameHeight = height;
 
-    return mGrallocHandleMap;
+    //return mGrallocHandleMap;
+    return buffers;
 
  fail:
     // need to cancel buffers if any were dequeued

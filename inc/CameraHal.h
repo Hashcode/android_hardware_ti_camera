@@ -118,6 +118,32 @@
 
 namespace android {
 
+/** TODO: Check if we can include this structure from v4l2_utlils.h or define it in some TI top level header file**/
+/*
+ * This is the overlay_t object, it is returned to the user and represents
+ * an overlay. here we use a subclass, where we can store our own state.
+ * This handles will be passed across processes and possibly given to other
+ * HAL modules (for instance video decode modules).
+ */
+struct overlay_true_handle_t : public native_handle_t {
+    /* add the data fields we need here, for instance: */
+    int ctl_fd;
+    int shared_fd;
+    int width;
+    int height;
+    int format;
+    int num_buffers;
+    int shared_size;
+};
+
+/* Defined in liboverlay */
+typedef struct {
+    int fd;
+    size_t length;
+    uint32_t offset;
+    void *ptr;
+} mapping_data_t;
+
 #define PARAM_BUFFER            6000
 
 ///Forward declarations
@@ -1237,6 +1263,7 @@ private:
     BufferProvider *mBufProvider;
     BufferProvider *mVideoBufProvider;
 
+    bool mPreviewBufsAllocatedUsingANativeWindow;
 
     CameraProperties::Properties* mCameraProperties;
 

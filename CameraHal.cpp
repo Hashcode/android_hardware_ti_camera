@@ -1035,21 +1035,34 @@ status_t CameraHal::allocPreviewBufs(int width, int height, const char* previewF
                                         unsigned int buffercount, unsigned int &max_queueable)
 {
     status_t ret = NO_ERROR;
+    BufferProvider* newBufProvider;
 
     LOG_FUNCTION_NAME;
 
-    if(mDisplayAdapter.get() == NULL)
-    {
-        // Memory allocation of preview buffers is now placed in gralloc
-        // CameraHal should not allocate preview buffers without DisplayAdapter
-        return NO_MEMORY;
-    }
+    /**
+      * Logic for allocation of preview buffers : If an overlay object is available, we allocate the preview buffers using
+      * that. If not, then we use Mem Manager to allocate the buffers
+      */
+
+    ///If overlay is initialized, allocate buffer using overlay
+    if(mDisplayAdapter.get() != NULL)
+        {
+        CAMHAL_LOGDA("DisplayAdapter present. Choosing DisplayAdapter as buffer allocator");
+        newBufProvider = (BufferProvider*) mDisplayAdapter.get();
+        mPreviewBufsAllocatedUsingANativeWindow = true;
+        }
+    else
+        {
+        CAMHAL_LOGDA("DisplayAdapter not present. Choosing MemoryManager as buffer allocator");
+        newBufProvider = (BufferProvider*) mMemoryManager.get();
+        mPreviewBufsAllocatedUsingANativeWindow = false;
+        }
 
     if(!mPreviewBufs)
     {
         ///@todo Pluralise the name of this method to allocateBuffers
         mPreviewLength = 0;
-        mPreviewBufs = (int32_t *) mDisplayAdapter->allocateBuffer(width, height,
+        mPreviewBufs = (int32_t *) newBufProvider->allocateBuffer(width, height,
                                                                     previewFormat,
                                                                     mPreviewLength,
                                                                     buffercount);
@@ -1059,68 +1072,55 @@ status_t CameraHal::allocPreviewBufs(int width, int height, const char* previewF
             return NO_MEMORY;
          }
 
-        mPreviewOffsets = (uint32_t *) mDisplayAdapter->getOffsets();
-        if ( NULL == mPreviewOffsets ) {
-            CAMHAL_LOGEA("Buffer mapping failed");
-            return BAD_VALUE;
-         }
+        mPreviewOffsets = (uint32_t *) newBufProvider->getOffsets();
+        mPreviewFd = newBufProvider->getFd();
+        // mBufProvider = (BufferProvider*) mDisplayAdapter.get();
+        mBufProvider = newBufProvider;
 
-        mPreviewFd = mDisplayAdapter->getFd();
-        if ( -1 == mPreviewFd ) {
-            CAMHAL_LOGEA("Invalid handle");
-            return BAD_VALUE;
-          }
-
-        mBufProvider = (BufferProvider*) mDisplayAdapter.get();
-
-        ret = mDisplayAdapter->maxQueueableBuffers(max_queueable);
+        max_queueable = buffercount;
+        ret = NO_ERROR; // newBufProvider->maxQueueableBuffers(max_queueable);
         if (ret != NO_ERROR) {
             return ret;
          }
 
     }
+    else
+        {
+            ///If the existing buffer provider is not DisplayAdapter but the new one is, free the buffers allocated using previous buffer provider
+            ///and allocate buffers using the DisplayAdapter (which in turn will query the buffers from Overlay object and just pass the pointers)
+            ///@todo currently having a static value for number of buffers, this may need to be made dynamic/flexible  b/w preview and video modes
+            if((mBufProvider!=(BufferProvider*)mDisplayAdapter.get()) && (newBufProvider==(BufferProvider*)mDisplayAdapter.get()))
+                {
 
-    LOG_FUNCTION_NAME_EXIT;
+                freePreviewBufs();
 
-    return ret;
+                mPreviewLength = 0;
+                mPreviewBufs = (int32_t *) newBufProvider->allocateBuffer(width, height,
+                                                                          previewFormat,
+                                                                          mPreviewLength,
+                                                                          buffercount);
+                if ( NULL == mPreviewBufs )
+                    {
+                    CAMHAL_LOGEA("Couldn't allocate preview buffers using Memory manager");
+                    LOG_FUNCTION_NAME_EXIT
+                    return NO_MEMORY;
+                    }
 
-}
+                mPreviewOffsets = (uint32_t *) newBufProvider->getOffsets();
+                mPreviewFd = newBufProvider->getFd();
+                // mBufProvider = (BufferProvider*) mDisplayAdapter.get();
+                mBufProvider = newBufProvider;
 
-/* FIXME-HASH: MemoryManager version of allocPreviewBufs */
-#if 0
-status_t CameraHal::allocPreviewBufs(int width, int height, const char* previewFormat,
-                                        unsigned int buffercount, unsigned int &max_queueable)
-{
-    status_t ret = NO_ERROR;
-
-    LOG_FUNCTION_NAME;
-
-    if(!mPreviewBufs)
-    {
-        ///@todo Pluralise the name of this method to allocateBuffers
-        mPreviewLength = 0;
-        mPreviewBufs = (int32_t *) mMemoryManager->allocateBuffer(width, height,
-                                                                    "",
-                                                                    mPreviewLength,
-                                                                    buffercount);
-	if (NULL == mPreviewBufs ) {
-            CAMHAL_LOGEA("Couldn't allocate preview buffers");
-            return NO_MEMORY;
+                max_queueable = buffercount;
+                ret = NO_ERROR; // newBufProvider->maxQueueableBuffers(max_queueable);
+                }
         }
 
-        mPreviewOffsets = (uint32_t *) mMemoryManager->getOffsets();
-        mPreviewFd = mMemoryManager->getFd();
-        mBufProvider = (BufferProvider*) mMemoryManager.get();
-        max_queueable = buffercount;
-        ret = NO_ERROR;
-
-    }
-
     LOG_FUNCTION_NAME_EXIT;
 
     return ret;
+
 }
-#endif
 
 status_t CameraHal::freePreviewBufs()
 {
@@ -1159,7 +1159,7 @@ status_t CameraHal::allocPreviewDataBufs(size_t size, size_t bufferCount)
 
     if ( NO_ERROR == ret )
         {
-        bytes = ((bytes+4095)/4096)*4096;
+        //bytes = ((bytes+4095)/4096)*4096;
         mPreviewDataBufs = (int32_t *)mMemoryManager->allocateBuffer(0, 0, NULL, bytes, bufferCount);
 
         CAMHAL_LOGDB("Size of Preview data buffer = %d", bytes);
@@ -1209,6 +1209,12 @@ status_t CameraHal::freePreviewDataBufs()
             mPreviewDataBufs = NULL;
 
             }
+        else
+            {
+            CAMHAL_LOGEA("Couldn't free PreviewDataBufs allocated by memory manager");
+            ret = -EINVAL;
+            }
+
         }
 
     LOG_FUNCTION_NAME_EXIT;
@@ -1225,14 +1231,18 @@ status_t CameraHal::allocImageBufs(unsigned int width, unsigned int height, size
 
     bytes = size;
 
-    // allocate image buffers only if not already allocated
-    if(NULL != mImageBufs) {
-        return NO_ERROR;
-    }
+    ///Always allocate the buffers for image capture using MemoryManager
+    if ( NO_ERROR == ret )
+        {
+        if( ( NULL != mImageBufs ) )
+            {
+            ret = freeImageBufs();
+            }
+        }
 
     if ( NO_ERROR == ret )
         {
-        bytes = ((bytes+4095)/4096)*4096;
+        //bytes = ((bytes+4095)/4096)*4096;
         mImageBufs = (int32_t *)mMemoryManager->allocateBuffer(0, 0, previewFormat, bytes, bufferCount);
 
         CAMHAL_LOGDB("Size of Image cap buffer = %d", bytes);
@@ -2809,6 +2819,7 @@ CameraHal::CameraHal(int cameraId)
     LOG_FUNCTION_NAME;
 
     ///Initialize all the member variables to their defaults
+    mPreviewBufsAllocatedUsingANativeWindow = false;
     mPreviewEnabled = false;
     mPreviewBufs = NULL;
     mImageBufs = NULL;

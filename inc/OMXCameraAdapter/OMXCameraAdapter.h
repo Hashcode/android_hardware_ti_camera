@@ -312,11 +312,6 @@ public:
             OMX_U32                         mHeight;
             OMX_U32                         mStride;
             OMX_U8                          mNumBufs;
-
-            // defines maximum number of buffers our of mNumBufs
-            // queueable at given moment
-            OMX_U8                          mMaxQueueable;
-
             OMX_U32                         mBufSize;
             OMX_COLOR_FORMATTYPE            mColorFormat;
             OMX_PARAM_VIDEONOISEFILTERTYPE  mVNFMode;
@@ -328,6 +323,9 @@ public:
             OMX_S32                         mMinFrameRate;
             OMX_S32                         mMaxFrameRate;
             CameraFrame::FrameType mImageType;
+            // defines maximum number of buffers our of mNumBufs
+            // queueable at given moment
+            OMX_U8                          mMaxQueueable;
     };
 
     ///Context of the OMX Camera component

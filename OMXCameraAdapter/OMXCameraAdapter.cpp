@@ -1846,6 +1846,7 @@ status_t OMXCameraAdapter::startPreview()
     //Queue all the buffers on preview port
     for(int index=0;index< mPreviewData->mMaxQueueable;index++)
         {
+        mPreviewData->mBufferHeader[index]->nFlags |= OMX_BUFFERHEADERFLAG_MODIFIED;
         CAMHAL_LOGDB("Queuing buffer on Preview port - 0x%x", (uint32_t)mPreviewData->mBufferHeader[index]->pBuffer);
         eError = OMX_FillThisBuffer(mCameraAdapterParameters.mHandleComp,
                     (OMX_BUFFERHEADERTYPE*)mPreviewData->mBufferHeader[index]);
@@ -2941,6 +2942,7 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
         return OMX_ErrorNone;
     }
 
+    CAMHAL_LOGEB("pBufferHeader->nOutputPortIndex == %d", pBuffHeader->nOutputPortIndex);
     if (pBuffHeader->nOutputPortIndex == OMX_CAMERA_PORT_VIDEO_OUT_PREVIEW)
         {
 

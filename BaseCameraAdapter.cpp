@@ -304,7 +304,8 @@ void BaseCameraAdapter::returnFrame(void* frameBuf, CameraFrame::FrameType frame
             }
         }
 
-    CAMHAL_LOGVB("REFCOUNT 0x%x %d", frameBuf, refCount);
+    /* FIXME-HASH: Logging */
+    CAMHAL_LOGEB("REFCOUNT 0x%x %d", frameBuf, refCount);
 
     if ( NO_ERROR == res )
         {
@@ -319,6 +320,8 @@ void BaseCameraAdapter::returnFrame(void* frameBuf, CameraFrame::FrameType frame
                 }
             mBuffersWithDucati.add((int)frameBuf,1);
 #endif
+            /* FIXME-HASH: Logging */
+            CAMHAL_LOGEA("fillThisBuffer");
             res = fillThisBuffer(frameBuf, frameType);
             }
         }
